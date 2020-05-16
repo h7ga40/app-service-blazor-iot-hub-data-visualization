@@ -1,0 +1,33 @@
+﻿<BSNavbar IsDark="true" class="top-row pl-4">
+	<BSNavbarBrand href="">IoT Visualizer</BSNavbarBrand>
+	<BSNavbarToggler @onclick="ToggleNavMenu" />
+</BSNavbar>
+
+<BSCollapse IsOpen="@collapseNavMenu" @onclick="ToggleNavMenu">
+	<BSNav IsList="true" IsVertical="true">
+		<BSNavItem class="px-3">
+			<BSNavLink href="" Match="NavLinkMatch.All">
+				<span class="oi oi-home" aria-hidden="true"></span> Home
+			</BSNavLink>
+		</BSNavItem>
+		<BSNavItem class="px-3">
+			<BSNavLink href="counter">
+				<span class="oi oi-plus" aria-hidden="true"></span> Counter
+			</BSNavLink>
+		</BSNavItem>
+		<BSNavItem class="px-3">
+			<BSNavLink href="fetchdata">
+				<span class="oi oi-list-rich" aria-hidden="true"></span> Fetch data
+			</BSNavLink>
+		</BSNavItem>
+	</BSNav>
+</BSCollapse>
+
+@code {
+	private bool collapseNavMenu = true;
+
+	private void ToggleNavMenu()
+	{
+		collapseNavMenu = !collapseNavMenu;
+	}
+}
