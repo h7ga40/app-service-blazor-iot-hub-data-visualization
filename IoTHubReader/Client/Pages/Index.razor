@@ -1,7 +1,22 @@
 ﻿@page "/"
 
-<h1>Hello, world!</h1>
+@((MarkupString)markdownText)
+
+<SurveyPrompt Title="How is Blazor working for you?" />
+
+@code{
+	private string markdownText = "";
+
+	private static string code = @"
+# Hello, world!
 
 Welcome to your new app.
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+";
+
+	protected override Task OnInitializedAsync()
+	{
+		markdownText = Markdig.Markdown.ToHtml(code);
+		return Task.CompletedTask;
+	}
+}
