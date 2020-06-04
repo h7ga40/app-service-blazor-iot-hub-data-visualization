@@ -1,16 +1,65 @@
 ﻿@page "/counter"
+@using System.Net
+@using System.Text.Json
+@using IoTCentral
 
-<h1>Counter</h1>
+@inject IHttpClientFactory httpClientFactory
 
-<p>Current count: @currentCount</p>
+<h1>IoT Central</h1>
 
-<BSButton Color="Color.Primary" @onclick="IncrementCount">Click me</BSButton>
+<BSForm Model="@formsModelVal" ValidateOnInit="true">
+	<BSFormGroup>
+		<BSLabel For="subdomain">アプリケーション名</BSLabel>
+		<BSInput Id="subdomain" InputType="InputType.Text" PlaceHolder="[APP_NAME].azureiotcentral.com" @bind-Value="formsModelVal.Subdomain" />
+		<BSFormFeedback For="@(() => formsModelVal.Subdomain)" IsTooltip="true" ValidMessage="Sweet! that name is available" />
+	</BSFormGroup>
+	<BSFormGroup>
+		<BSLabel For="accessToken">アクセストークン</BSLabel>
+		<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
+		<BSFormFeedback For="@(() => formsModelVal.AccessToken)" IsTooltip="true" ValidMessage="Sweet! that name is available" />
+	</BSFormGroup>
+	<BSButton Color="Color.Primary" @onclick="OnSave">Click me</BSButton>
+</BSForm>
+
+<p>Response: @currentCount</p>
 
 @code {
-    private int currentCount = 0;
+	private string currentCount = "";
+	private FormsModel formsModelVal = new FormsModel();
+	private string centralDnsSuffixInPath = "azureiotcentral.com";
+	private string token_id = "blazor";
 
-    private void IncrementCount()
-    {
-        currentCount++;
-    }
+	class FormsModel {
+		public string Subdomain { get; set; }
+		public string AccessToken { get; set; }
+	}
+
+	private async Task OnSave()
+	{
+		var accessToken = formsModelVal.AccessToken;
+		var subdomain = formsModelVal.Subdomain;
+
+		if (String.IsNullOrEmpty(accessToken) || String.IsNullOrEmpty(accessToken)) {
+			currentCount = "入力して";
+			return;
+		}
+
+		if (accessToken.StartsWith("SharedAccessSignature "))
+			Program.SharedAccessSignature = accessToken.Substring(23);
+		else
+			Program.SharedAccessSignature = accessToken;
+
+		var httpClient = httpClientFactory.CreateClient("IoTCentral");
+		var client = new ApiTokensClient(httpClient);
+		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
+		var result = await client.ListAsync();
+		if (result == null) {
+			currentCount = "error";
+			return;
+		}
+
+		foreach (var r in result.Value) {
+			currentCount += $"Id:{r.Id}, Expiry:{r.Expiry}, Token:{r.Token}, Roles:[{String.Join(",", r.Roles)}]";
+		}
+	}
 }
