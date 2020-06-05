@@ -29,9 +29,26 @@
 	private string centralDnsSuffixInPath = "azureiotcentral.com";
 	private string token_id = "blazor";
 
-	class FormsModel {
+	class FormsModel
+	{
 		public string Subdomain { get; set; }
 		public string AccessToken { get; set; }
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (root == null) {
+			var httpClient = httpClientFactory.CreateClient("IoTHubReader.Client");
+			var responce = await httpClient.GetAsync("AppendixData/EL_DeviceDescription_3_1_5r4.json");
+			if (responce.StatusCode == HttpStatusCode.OK)
+				ReadELDeviceDescription(await responce.Content.ReadAsByteArrayAsync());
+		}
+
+		if (root != null) {
+			currentCount = $"Definitions:{root.Definitions.Count}, Devices:{root.Devices.Count}";
+		}
+
+		await base.OnAfterRenderAsync(firstRender);
 	}
 
 	private async Task OnSave()

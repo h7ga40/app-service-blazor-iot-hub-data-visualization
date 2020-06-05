@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 
-namespace IoTPnPEL
+namespace IoTHubReader.Shared
 {
-	enum ELAccessRule
+	public enum ELAccessRule
 	{
 		None,
 		Required,
@@ -14,7 +14,7 @@ namespace IoTPnPEL
 		NA,
 	}
 
-	enum ELDataType
+	public enum ELDataType
 	{
 		None,
 		State,
@@ -30,7 +30,7 @@ namespace IoTPnPEL
 		OneOf,
 	}
 
-	enum ELNumberFormat
+	public enum ELNumberFormat
 	{
 		None,
 		Int8,
@@ -41,7 +41,7 @@ namespace IoTPnPEL
 		Uint32,
 	}
 
-	class EdtInfo
+	public class EdtInfo
 	{
 		public long Edt;
 		public string StateJa;
@@ -50,7 +50,7 @@ namespace IoTPnPEL
 		public bool EdtReadOnly;
 	}
 
-	class ELDeviceDescription
+	public class ELDeviceDescription
 	{
 		enum State
 		{
@@ -162,7 +162,7 @@ namespace IoTPnPEL
 			}
 		}
 
-		internal ELDefinition GetDefinition(string reference)
+		public ELDefinition GetDefinition(string reference)
 		{
 			string name;
 			if (reference.StartsWith("#/definitions/"))
@@ -179,7 +179,7 @@ namespace IoTPnPEL
 		}
 	}
 
-	class ELMetaData
+	public class ELMetaData
 	{
 		enum State
 		{
@@ -265,7 +265,7 @@ namespace IoTPnPEL
 		}
 	}
 
-	class ELDefinition
+	public class ELDefinition
 	{
 		enum State
 		{
@@ -882,7 +882,7 @@ namespace IoTPnPEL
 		}
 	}
 
-	class ELDevice
+	public class ELDevice
 	{
 		enum State
 		{
@@ -1102,7 +1102,7 @@ namespace IoTPnPEL
 		}
 	}
 
-	class ELProperty
+	public class ELProperty
 	{
 		enum State
 		{
@@ -1424,7 +1424,7 @@ namespace IoTPnPEL
 		}
 	}
 
-	class ELBitmap
+	public class ELBitmap
 	{
 		enum State
 		{
