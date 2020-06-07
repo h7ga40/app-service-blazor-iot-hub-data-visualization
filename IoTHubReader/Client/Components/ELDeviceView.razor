@@ -1,0 +1,38 @@
+
+@if (Device != null) {
+	<h2>
+		@Device.Ja
+	</h2>
+	<BSTabGroup ShownEvent="@Shown" HiddenEvent="@Hidden">
+		<BSTabList>
+			@foreach (var prop in Device.Properties) {
+				<BSTab>
+					<BSTabLabel>@("0x" + prop.Epc.ToString("X02"))</BSTabLabel>
+					<BSTabContent>
+						<ELPropertyView Property="@prop" />
+					</BSTabContent>
+				</BSTab>
+			}
+		</BSTabList>
+		<BSTabSelectedContent />
+	</BSTabGroup>
+}
+
+@code{
+	[Parameter]
+	public ELDevice Device { get; set; }
+
+	public BSTabBase tab;
+
+	private void Shown(BSTabEvent e)
+	{
+		tab = e.Activated;
+		Console.WriteLine($"Shown  -> Activated: {e.Activated?.Id.ToString()} , Deactivated: {e.Deactivated?.Id.ToString()}");
+	}
+
+	private void Hidden(BSTabEvent e)
+	{
+		tab = e.Activated;
+		Console.WriteLine($"Hidden -> Activated: {e.Activated?.Id.ToString()} , Deactivated: {e.Deactivated?.Id.ToString()}");
+	}
+}

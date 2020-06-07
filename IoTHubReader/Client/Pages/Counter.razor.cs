@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using IoTCentral;
+using System.Text.Json.Serialization;
 using IoTHubReader.Shared;
 
 namespace IoTHubReader.Client.Pages
@@ -17,23 +17,11 @@ namespace IoTHubReader.Client.Pages
 			};
 			var reader = new Utf8JsonReader(data, options);
 
-			root = new ELDeviceDescription();
-			root.WalkJson(ref reader);
-
-			var dtifs = new List<DTInterface>();
-
-			foreach (var device in root.Devices) {
-				WalkProperties(dtifs, device);
-
-				if (device.OneOf != null) {
-					foreach (var one in device.OneOf) {
-						WalkProperties(dtifs, one);
-					}
-				}
-			}
+			DeviceDescription = new ELDeviceDescription();
+			DeviceDescription.WalkJson(ref reader);
 		}
 
-		private void WalkProperties(List<DTInterface> dtifs, ELDevice device)
+		public static void WalkProperties(List<DTInterface> dtifs, ELDevice device)
 		{
 			if (device.Properties != null) {
 				foreach (var property in device.Properties) {
@@ -50,22 +38,22 @@ namespace IoTHubReader.Client.Pages
 			}
 		}
 
-		ELDeviceDescription root;
+		ELDeviceDescription DeviceDescription;
 
-		private uint GetAccessValue(ELProperty property)
+		public static uint GetAccessValue(ELProperty property)
 		{
 			return GetAccessValue(property.Get, property.Set, property.Inf);
 		}
 
-		internal uint GetAccessValue(ELAccessRule get, ELAccessRule set, ELAccessRule inf)
+		public static uint GetAccessValue(ELAccessRule get, ELAccessRule set, ELAccessRule inf)
 		{
 			return (((uint)inf & 0xF) << 8) | (((uint)set & 0xF) << 4) | (((uint)get & 0xF) << 0);
 		}
 
-		internal string make_digital_twin_id(string id)
+		internal static string make_digital_twin_id(string id)
 		{
 			int i = 0, len = id.Length;
-			char[] temp = new char[len + 1];
+			char[] temp = new char[len];
 
 			for (char c = id[i]; (i < len) && ((c = id[i]) != '\0'); i++) {
 				if (((c >= '0') && (c <= '9')) || (c == '_')
@@ -78,16 +66,10 @@ namespace IoTHubReader.Client.Pages
 				}
 			}
 
-			if (i >= len - 1)
-				i = len - 1;
-
-			temp[i] = '\0';
-
 			return new string(temp);
 		}
 
-
-		private void MakeDTInterface(List<DTInterface> dtifs, int index, uint accessValue,
+		public static void MakeDTInterface(List<DTInterface> dtifs, int index, uint accessValue,
 			string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
 		{
 			DTInterfaceType if_type;
@@ -166,8 +148,9 @@ namespace IoTHubReader.Client.Pages
 					command.Type = "Command";
 					command.Context = "http://azureiot.com/v1/contexts/IoTModel.json";
 					command.Name = name;
-					command.DisplayNameEn = edt.StateEn;
-					command.DisplayNameJa = edt.StateJa;
+					command.DisplayName = new Dictionary<string, string>();
+					command.DisplayName["en"] = edt.StateEn;
+					command.DisplayName["ja"] = edt.StateJa;
 
 					command.CommandType = "synchronous";
 
@@ -215,8 +198,9 @@ namespace IoTHubReader.Client.Pages
 					break;
 				}
 
-				ifcnt.DisplayNameEn = propertyNameEn;
-				ifcnt.DisplayNameJa = propertyNameJa;
+				ifcnt.DisplayName = new Dictionary<string, string>();
+				ifcnt.DisplayName["en"] = propertyNameEn;
+				ifcnt.DisplayName["ja"] = propertyNameJa;
 
 				switch (if_type) {
 				case DTInterfaceType.Command: {
@@ -247,14 +231,14 @@ namespace IoTHubReader.Client.Pages
 			}
 		}
 
-		DTSchema make_schema(ELDefinition dataInfo)
+		static DTSchema make_schema(ELDefinition dataInfo)
 		{
 			var schema = new DTSchema();
 
 			switch (dataInfo.Type) {
 			case ELDataType.None:
-				if (!String.IsNullOrEmpty(dataInfo.Reference)) {
-					return make_schema(root.GetDefinition(dataInfo.Reference));
+				if (dataInfo.Reference != null) {
+					return make_schema(dataInfo.Reference);
 				}
 				break;
 			case ELDataType.State: {
@@ -278,8 +262,9 @@ namespace IoTHubReader.Client.Pages
 
 					enumValue.EnumValue = edt.Edt;
 
-					enumValue.DisplayNameEn = edt.StateEn;
-					enumValue.DisplayNameJa = edt.StateJa;
+					enumValue.DisplayName = new Dictionary<string, string>();
+					enumValue.DisplayName["en"] = edt.StateEn;
+					enumValue.DisplayName["ja"] = edt.StateJa;
 				}
 				break;
 			}
@@ -377,7 +362,7 @@ namespace IoTHubReader.Client.Pages
 			return schema;
 		}
 
-		DTCommand make_command_payload(string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
+		static DTCommand make_command_payload(string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
 		{
 			var command = new DTCommand();
 
@@ -392,8 +377,9 @@ namespace IoTHubReader.Client.Pages
 			var request = make_schema(dataInfo);
 			command.Schema = request;
 
-			command.DisplayNameEn = propertyNameEn;
-			command.DisplayNameJa = propertyNameJa;
+			command.DisplayName = new Dictionary<string, string>();
+			command.DisplayName["en"] = propertyNameEn;
+			command.DisplayName["ja"] = propertyNameJa;
 
 			command.DisplayUnit = dataInfo.Unit;
 
@@ -409,14 +395,16 @@ namespace IoTHubReader.Client.Pages
 		Command,
 	}
 
-	class DTInterface
+	public class DTInterface
 	{
+		[JsonPropertyName("@id")]
 		public string Id { get; internal set; }
+		[JsonPropertyName("@type")]
 		public string Type { get; internal set; }
+		[JsonPropertyName("@context")]
 		public string Context { get; internal set; }
 		public string Name { get; internal set; }
-		public string DisplayNameEn { get; internal set; }
-		public string DisplayNameJa { get; internal set; }
+		public Dictionary<string, string> DisplayName { get; internal set; }
 		public string CommandType { get; internal set; }
 		public DTSchema Schema { get; internal set; }
 		public bool Writable { get; internal set; }
@@ -425,35 +413,35 @@ namespace IoTHubReader.Client.Pages
 		public string DisplayUnit { get; internal set; }
 	}
 
-	class DTSchema
+	public class DTSchema
 	{
+		[JsonPropertyName("@type")]
 		public string Type { get; internal set; }
 		public List<DTField> Fields { get; internal set; }
 		public string ValueSchema { get; internal set; }
 		public List<DTEnumValue> EnumValues { get; internal set; }
 	}
 
-	class DTCommand
+	public class DTCommand
 	{
+		[JsonPropertyName("@id")]
 		public string Id { get; internal set; }
 		public string Name { get; internal set; }
 		public DTSchema Schema { get; internal set; }
-		public string DisplayNameEn { get; internal set; }
-		public string DisplayNameJa { get; internal set; }
+		public Dictionary<string, string> DisplayName { get; internal set; }
 		public string DisplayUnit { get; internal set; }
 	}
 
-	class DTField
+	public class DTField
 	{
 		public string Name { get; internal set; }
 		public DTSchema Schema { get; internal set; }
 	}
 
-	class DTEnumValue
+	public class DTEnumValue
 	{
 		public string Name { get; internal set; }
 		public long EnumValue { get; internal set; }
-		public string DisplayNameEn { get; internal set; }
-		public string DisplayNameJa { get; internal set; }
+		public Dictionary<string, string> DisplayName { get; internal set; }
 	}
 }

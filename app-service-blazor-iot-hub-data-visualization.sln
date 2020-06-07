@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
-VisualStudioVersion = 16.0.30104.148
+VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IoTHubReader.Server", "IoTHubReader\Server\IoTHubReader.Server.csproj", "{07FFF759-07F3-43AD-9D4F-3E2BB9C7CA53}"
 EndProject

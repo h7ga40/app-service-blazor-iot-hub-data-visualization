@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace IoTHubReader.Shared
 {
@@ -77,7 +78,7 @@ namespace IoTHubReader.Shared
 						state = State.Root;
 						break;
 					case State.MetaData:
-						MetaData = new ELMetaData();
+						MetaData = new ELMetaData(this);
 						MetaData.WalkJson(ref reader);
 						state = State.Root;
 						break;
@@ -126,7 +127,7 @@ namespace IoTHubReader.Shared
 						break;
 					case State.Definitions: {
 						for (; ; ) {
-							var definition = new ELDefinition(propertyName);
+							var definition = new ELDefinition(this, propertyName);
 							definition.WalkJson(ref reader, true);
 							Definitions.Add(definition);
 							reader.Read();
@@ -139,7 +140,7 @@ namespace IoTHubReader.Shared
 					}
 					case State.Devices:
 						for (; ; ) {
-							var device = new ELDevice(propertyName);
+							var device = new ELDevice(this, propertyName);
 							device.WalkJson(ref reader, true);
 							Devices.Add(device);
 							reader.Read();
@@ -191,10 +192,18 @@ namespace IoTHubReader.Shared
 			Copyright,
 		}
 
+		[JsonIgnore]
+		public ELDeviceDescription DeviceDescription { get; }
+
 		public string Date { get; private set; }
 		public string Release { get; private set; }
 		public string Version { get; private set; }
 		public string Copyright { get; private set; }
+
+		public ELMetaData(ELDeviceDescription deviceDescription)
+		{
+			DeviceDescription = deviceDescription;
+		}
 
 		public void WalkJson(ref Utf8JsonReader reader)
 		{
@@ -307,6 +316,9 @@ namespace IoTHubReader.Shared
 			Bitmap
 		}
 
+		[JsonIgnore]
+		public ELDeviceDescription DeviceDescription { get; }
+
 		public EdtInfo EdtInfo { get; private set; }
 		public ELDataType Type { get; private set; }
 		public int Size { get; private set; }
@@ -317,7 +329,7 @@ namespace IoTHubReader.Shared
 		public int MinSize { get; private set; }
 		public int MaxSize { get; private set; }
 		public string Unit { get; private set; }
-		public string Reference { get; private set; }
+		public ELDefinition Reference { get; private set; }
 		public double MultipleOf { get; private set; }
 		public int ItemSize { get; private set; }
 		public int MinItems { get; private set; }
@@ -329,13 +341,15 @@ namespace IoTHubReader.Shared
 		public List<ELDefinition> DataInfos { get; private set; }
 		public List<ELBitmap> BitmapInfos { get; private set; }
 
-		public ELDefinition()
+		public ELDefinition(ELDeviceDescription deviceDescription)
 		{
+			DeviceDescription = deviceDescription;
 		}
 
-		public ELDefinition(string name)
+		public ELDefinition(ELDeviceDescription deviceDescription, string name)
+			: this(deviceDescription)
 		{
-			this.Name = name;
+			Name = name;
 		}
 
 		public void WalkJson(ref Utf8JsonReader reader, bool start)
@@ -362,7 +376,7 @@ namespace IoTHubReader.Shared
 						break;
 					case State.Property: {
 						do {
-							var definition = new ELDefinition();
+							var definition = new ELDefinition(DeviceDescription);
 							definition.WalkJson(ref reader, false);
 							DataInfos.Add(definition);
 							reader.Read();
@@ -377,7 +391,7 @@ namespace IoTHubReader.Shared
 					}
 					case State.OneOfItem:
 						do {
-							var definition = new ELDefinition();
+							var definition = new ELDefinition(DeviceDescription);
 							definition.WalkJson(ref reader, false);
 							DataInfos.Add(definition);
 							reader.Read();
@@ -387,7 +401,7 @@ namespace IoTHubReader.Shared
 						break;
 					case State.Items: {
 						DataInfos = new List<ELDefinition>();
-						var definition = new ELDefinition();
+						var definition = new ELDefinition(DeviceDescription);
 						definition.WalkJson(ref reader, false);
 						DataInfos.Add(definition);
 						state = State.Members;
@@ -395,7 +409,7 @@ namespace IoTHubReader.Shared
 					}
 					case State.Bitmap:
 						do {
-							var bitmap = new ELBitmap();
+							var bitmap = new ELBitmap(DeviceDescription);
 							bitmap.WalkJson(ref reader);
 							BitmapInfos.Add(bitmap);
 							reader.Read();
@@ -629,7 +643,7 @@ namespace IoTHubReader.Shared
 						state = State.Members;
 						break;
 					case State.Reference:
-						Reference = value;
+						Reference = DeviceDescription.GetDefinition(value);
 						state = State.Members;
 						break;
 					case State.MultipleOf:
@@ -903,6 +917,9 @@ namespace IoTHubReader.Shared
 			FirstRelease,
 		}
 
+		[JsonIgnore]
+		public ELDeviceDescription DeviceDescription { get; }
+
 		public string Code { get; private set; }
 		public string From { get; private set; }
 		public string To { get; private set; }
@@ -912,9 +929,10 @@ namespace IoTHubReader.Shared
 		public List<ELProperty> Properties { get; private set; }
 		public List<ELDevice> OneOf { get; private set; }
 
-		public ELDevice(string code)
+		public ELDevice(ELDeviceDescription deviceDescription, string code)
 		{
-			this.Code = code;
+			DeviceDescription = deviceDescription;
+			Code = code;
 		}
 
 		public void WalkJson(ref Utf8JsonReader reader, bool start)
@@ -943,7 +961,7 @@ namespace IoTHubReader.Shared
 						break;
 					case State.OneOfItem:
 						do {
-							var device = new ELDevice(Code);
+							var device = new ELDevice(DeviceDescription, Code);
 							device.WalkJson(ref reader, false);
 							OneOf.Add(device);
 							reader.Read();
@@ -1037,7 +1055,7 @@ namespace IoTHubReader.Shared
 						break;
 					case State.ElPropertieValue:
 						for (; ; ) {
-							var property = new ELProperty(propertyName);
+							var property = new ELProperty(DeviceDescription, propertyName);
 							property.WalkJson(ref reader, true);
 							Properties.Add(property);
 							reader.Read();
@@ -1131,6 +1149,9 @@ namespace IoTHubReader.Shared
 			Atomic,
 		}
 
+		[JsonIgnore]
+		public ELDeviceDescription DeviceDescription { get; }
+
 		public int Epc { get; private set; }
 		public string From { get; private set; }
 		public string To { get; private set; }
@@ -1145,9 +1166,10 @@ namespace IoTHubReader.Shared
 		public int Atmic { get; private set; }
 		public List<ELProperty> OneOf { get; private set; }
 
-		public ELProperty(string epc)
+		public ELProperty(ELDeviceDescription deviceDescription, string epc)
 		{
-			this.Epc = GetEpc(epc);
+			DeviceDescription = deviceDescription;
+			Epc = GetEpc(epc);
 		}
 
 		private static byte GetEpc(string epc)
@@ -1184,7 +1206,7 @@ namespace IoTHubReader.Shared
 						state = State.AccessRuleValue;
 						break;
 					case State.Data: {
-						Data = new ELDefinition();
+						Data = new ELDefinition(DeviceDescription);
 						Data.WalkJson(ref reader, false);
 						state = State.Members;
 						break;
@@ -1194,7 +1216,7 @@ namespace IoTHubReader.Shared
 						break;
 					case State.OneOfItem:
 						do {
-							var property = new ELProperty(Epc.ToString());
+							var property = new ELProperty(DeviceDescription, Epc.ToString());
 							property.WalkJson(ref reader, false);
 							OneOf.Add(property);
 							reader.Read();
@@ -1442,12 +1464,20 @@ namespace IoTHubReader.Shared
 			PositionBitMask,
 		}
 
+		[JsonIgnore]
+		public ELDeviceDescription DeviceDescription { get; }
+
 		public string Name { get; private set; }
 		public string Ja { get; private set; }
 		public string En { get; private set; }
 		public int Index { get; private set; }
 		public string BitMask { get; private set; }
 		public ELDefinition Value { get; private set; }
+
+		public ELBitmap(ELDeviceDescription deviceDescription)
+		{
+			DeviceDescription = deviceDescription;
+		}
 
 		public void WalkJson(ref Utf8JsonReader reader)
 		{
@@ -1469,7 +1499,7 @@ namespace IoTHubReader.Shared
 						state = State.PositionValue;
 						break;
 					case State.Value:
-						Value = new ELDefinition();
+						Value = new ELDefinition(DeviceDescription);
 						Value.WalkJson(ref reader, false);
 						state = State.Members;
 						break;
