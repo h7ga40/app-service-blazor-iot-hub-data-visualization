@@ -1,10 +1,16 @@
 ﻿@page "/"
+@page "/doc/{PageId}"
 
+@inject HttpClient Http
 @((MarkupString)markdownText)
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+@if (String.IsNullOrEmpty(PageId)) {
+	<SurveyPrompt Title="How is Blazor working for you?" />
+}
 
 @code{
+	[Parameter]
+	public string PageId { get; set; }
 	private string markdownText = "";
 
 	private static string code = @"
@@ -14,9 +20,14 @@ Welcome to your new app.
 
 ";
 
-	protected override Task OnInitializedAsync()
+	protected override async Task OnInitializedAsync()
 	{
-		markdownText = Markdig.Markdown.ToHtml(code);
-		return Task.CompletedTask;
+		if (String.IsNullOrEmpty(PageId)) {
+			markdownText = Markdig.Markdown.ToHtml(code);
+			return;
+		}
+
+		var markdown = await Http.GetAsync("doc/" + PageId + ".md");
+		markdownText = Markdig.Markdown.ToHtml(await markdown.Content.ReadAsStringAsync());
 	}
 }
