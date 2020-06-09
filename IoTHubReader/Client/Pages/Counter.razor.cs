@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using IoTHubReader.Shared;
 
 namespace IoTHubReader.Client.Pages
@@ -21,7 +22,7 @@ namespace IoTHubReader.Client.Pages
 			DeviceDescription.WalkJson(ref reader);
 		}
 
-		public static void WalkProperties(List<DTInterface> dtifs, ELDevice device)
+		public static void WalkProperties(List<DTInterfaceContent> dtifs, ELDevice device)
 		{
 			if (device.Properties != null) {
 				foreach (var property in device.Properties) {
@@ -66,10 +67,28 @@ namespace IoTHubReader.Client.Pages
 				}
 			}
 
-			return new string(temp);
+			return ToPascalCase(new string(temp));
 		}
 
-		public static void MakeDTInterface(List<DTInterface> dtifs, int index, uint accessValue,
+		private static string ToPascalCase(string str)
+		{
+			var ms = Regex.Matches(str, "_([a-z])");
+			if (ms.Count == 0)
+				return str;
+
+			var result = "";
+			int index = 0;
+			foreach (Match m in ms) {
+				result += str.Substring(index, m.Index - index);
+				result += m.Groups[1].Value.ToUpper();
+				index = m.Index + m.Length;
+			}
+			result += str.Substring(index, str.Length - index);
+
+			return result;
+		}
+
+		public static void MakeDTInterface(List<DTInterfaceContent> dtifs, int index, uint accessValue,
 			string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
 		{
 			DTInterfaceType if_type;
@@ -135,7 +154,7 @@ namespace IoTHubReader.Client.Pages
 
 			if ((if_type == DTInterfaceType.Command) && (dataInfo.Type == ELDataType.State)) {
 				foreach (var edt in dataInfo.EdtInfos) {
-					DTInterface command = new DTInterface();
+					DTInterfaceContent command = new DTInterfaceContent();
 
 					string name;
 					if (edt.StateEn != null) {
@@ -158,7 +177,7 @@ namespace IoTHubReader.Client.Pages
 				}
 			}
 			else {
-				DTInterface ifcnt = new DTInterface();
+				DTInterfaceContent ifcnt = new DTInterfaceContent();
 
 				var name = make_digital_twin_id(propertyNameEn);
 
@@ -362,9 +381,9 @@ namespace IoTHubReader.Client.Pages
 			return schema;
 		}
 
-		static DTCommand make_command_payload(string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
+		static DTCommandPayload make_command_payload(string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
 		{
-			var command = new DTCommand();
+			var command = new DTCommandPayload();
 
 			var name = make_digital_twin_id(propertyNameEn);
 
@@ -395,21 +414,78 @@ namespace IoTHubReader.Client.Pages
 		Command,
 	}
 
-	public class DTInterface
+	public class DTCapabilityModel
+	{
+		[JsonPropertyName("@id")]
+		public string Id { get; set; }
+
+		[JsonPropertyName("@type")]
+		public string Type { get; set; }
+
+		[JsonPropertyName("description")]
+		public Dictionary<string, string> Description { get; set; }
+
+		[JsonPropertyName("displayName")]
+		public Dictionary<string, string> DisplayName { get; set; }
+
+		[JsonPropertyName("@context")]
+		public string Context { get; internal set; }
+
+		[JsonPropertyName("implements")]
+		public List<DTInterfaceInstance> Implements { get; internal set; }
+	}
+
+	public class DTInterfaceInstance
+	{
+		[JsonPropertyName("@id")]
+		public string Id { get; set; }
+
+		[JsonPropertyName("@type")]
+		public string Type { get; set; }
+
+		[JsonPropertyName("description")]
+		public Dictionary<string, string> Description { get; set; }
+
+		[JsonPropertyName("displayName")]
+		public Dictionary<string, string> DisplayName { get; set; }
+
+		[JsonPropertyName("schema")]
+		public List<DTSchema> Schema { get; internal set; }
+	}
+
+	public class DTInterfaceContent
 	{
 		[JsonPropertyName("@id")]
 		public string Id { get; internal set; }
+
 		[JsonPropertyName("@type")]
 		public string Type { get; internal set; }
+
 		[JsonPropertyName("@context")]
 		public string Context { get; internal set; }
+
+		[JsonPropertyName("name")]
 		public string Name { get; internal set; }
+
+		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; internal set; }
+
+		[JsonPropertyName("commandType")]
 		public string CommandType { get; internal set; }
+
+		[JsonPropertyName("schema")]
 		public DTSchema Schema { get; internal set; }
+
+		[JsonPropertyName("writable")]
 		public bool Writable { get; internal set; }
-		public DTCommand Request { get; internal set; }
-		public DTCommand Response { get; internal set; }
+
+		[JsonPropertyName("request")]
+		public DTCommandPayload Request { get; internal set; }
+
+		[JsonPropertyName("response")]
+		public DTCommandPayload Response { get; internal set; }
+
+		[JsonPropertyName("displayUnit")]
 		public string DisplayUnit { get; internal set; }
 	}
 
@@ -417,31 +493,53 @@ namespace IoTHubReader.Client.Pages
 	{
 		[JsonPropertyName("@type")]
 		public string Type { get; internal set; }
+		
+		[JsonPropertyName("fields")]
 		public List<DTField> Fields { get; internal set; }
+
+		[JsonPropertyName("valueSchema")]
 		public string ValueSchema { get; internal set; }
+
+		[JsonPropertyName("enumValues")]
 		public List<DTEnumValue> EnumValues { get; internal set; }
 	}
 
-	public class DTCommand
+	public class DTCommandPayload
 	{
 		[JsonPropertyName("@id")]
 		public string Id { get; internal set; }
+
+		[JsonPropertyName("name")]
 		public string Name { get; internal set; }
+
+		[JsonPropertyName("schema")]
 		public DTSchema Schema { get; internal set; }
+
+		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; internal set; }
+
+		[JsonPropertyName("displayUnit")]
 		public string DisplayUnit { get; internal set; }
 	}
 
 	public class DTField
 	{
+		[JsonPropertyName("name")]
 		public string Name { get; internal set; }
+
+		[JsonPropertyName("schema")]
 		public DTSchema Schema { get; internal set; }
 	}
 
 	public class DTEnumValue
 	{
+		[JsonPropertyName("name")]
 		public string Name { get; internal set; }
+
+		[JsonPropertyName("enumValue")]
 		public long EnumValue { get; internal set; }
+
+		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; internal set; }
 	}
 }
