@@ -2,6 +2,7 @@
 @using System.Net
 @using System.Text.Json
 @using IoTCentral
+@using BlazorFileSaver
 
 @inject IHttpClientFactory httpClientFactory
 
@@ -53,6 +54,11 @@
 		</BSPaginationItem>
 	</BSPagination>
 
+	@if (device != null) {
+		<input type="text" @bind="FileName" />
+		<BSButton Color="Color.Primary" @onclick="Save">Save</BSButton>
+	}
+
 	<ELDeviceView Device="@device" />
 }
 
@@ -62,17 +68,17 @@
 	<BSForm Model="@formsModelVal" ValidateOnInit="false">
 		<DataAnnotationsValidator />
 		<BSFormGroup style="position: relative;">
-		<BSLabel For="subdomain">アプリケーション名</BSLabel>
-		<BSInput Id="subdomain" InputType="InputType.Text" PlaceHolder="[APP_NAME].azureiotcentral.com" @bind-Value="formsModelVal.Subdomain" />
+			<BSLabel For="subdomain">アプリケーション名</BSLabel>
+			<BSInput Id="subdomain" InputType="InputType.Text" PlaceHolder="[APP_NAME].azureiotcentral.com" @bind-Value="formsModelVal.Subdomain" />
 			<BSFormFeedback For="@(() => formsModelVal.Subdomain)" IsTooltip="true" InvalidMessage="[APP_NAME].azureiotcentral.com" />
-	</BSFormGroup>
+		</BSFormGroup>
 		<BSFormGroup style="position: relative;">
-		<BSLabel For="accessToken">アクセストークン</BSLabel>
-		<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
+			<BSLabel For="accessToken">アクセストークン</BSLabel>
+			<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
 			<BSFormFeedback For="@(() => formsModelVal.AccessToken)" IsTooltip="true" InvalidMessage="SharedAccessSignature sr=xxxx..." />
-	</BSFormGroup>
-	<BSButton Color="Color.Primary" @onclick="OnSave">Click me</BSButton>
-</BSForm>
+		</BSFormGroup>
+		<BSButton Color="Color.Primary" @onclick="OnSave">Click me</BSButton>
+	</BSForm>
 </div>
 
 <p>Response: @currentCount</p>
@@ -85,6 +91,10 @@
 	private int start;
 	private ELDevice device;
 	const int ViewCount = 5;
+
+	[Inject]
+	private IBlazorFileSaver BlazorFileSaver { get; set; }
+	private string FileName { get; set; } = "EchonetLite.json";
 
 	class FormsModel
 	{
@@ -163,5 +173,15 @@
 
 		if (start + ViewCount >= count)
 			start = count - ViewCount;
+	}
+
+	private async Task Save()
+	{
+		if (device == null)
+			return;
+
+		var Data = MakeDeviceTemplate(device);
+
+		await BlazorFileSaver.SaveAs(FileName, Data);
 	}
 }

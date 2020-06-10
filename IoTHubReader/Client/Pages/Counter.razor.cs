@@ -24,14 +24,16 @@ namespace IoTHubReader.Client.Pages
 
 		public static void WalkProperties(List<DTInterfaceContent> dtifs, ELDevice device)
 		{
+			var deviceName = make_digital_twin_id(device.En);
+
 			if (device.Properties != null) {
 				foreach (var property in device.Properties) {
-					MakeDTInterface(dtifs, 0, GetAccessValue(property),
+					MakeDTInterface(dtifs, 0, deviceName, GetAccessValue(property),
 						property.Ja, property.En, property.Data);
 
 					if (property.OneOf != null) {
 						foreach (var one in property.OneOf) {
-							MakeDTInterface(dtifs, 0, GetAccessValue(one),
+							MakeDTInterface(dtifs, 0, deviceName, GetAccessValue(one),
 									one.Ja, one.En, one.Data);
 						}
 					}
@@ -40,6 +42,61 @@ namespace IoTHubReader.Client.Pages
 		}
 
 		ELDeviceDescription DeviceDescription;
+
+		public static string MakeDeviceTemplate(ELDevice device)
+		{
+			var dtifs = new List<DTInterfaceContent>();
+			var deviceName = make_digital_twin_id(device.En);
+
+			foreach (var property in device.Properties) {
+				MakeDTInterface(dtifs, 0, deviceName, GetAccessValue(property),
+					property.Ja, property.En, property.Data);
+
+				if (property.OneOf != null) {
+					foreach (var one in property.OneOf) {
+						MakeDTInterface(dtifs, 0, deviceName, GetAccessValue(one),
+							one.Ja, one.En, one.Data);
+					}
+				}
+			}
+
+			var deviceTemplate = new DTCapabilityModel {
+				Id = $"urn:EchonetLite:{deviceName}CM:1",
+				Type = "CapabilityModel",
+				Context = "http://azureiot.com/v1/contexts/IoTModel.json",
+				DisplayName = new Dictionary<string, string> {
+					{ "en", device.En },
+					{ "ja", device.Ja },
+				},
+				Implements = new List<DTInterfaceInstance> {
+					new DTInterfaceInstance {
+						Id = $"urn:EchonetLite:{deviceName}:ver_1:1",
+						Type = "InterfaceInstance",
+						Name = deviceName,
+						DisplayName = new Dictionary<string, string> {
+							{ "en", "Interface" },
+							{ "ja", "インターフェイス" }
+						},
+						Schema = new DTSchema {
+							Id = $"urn:EchonetLite:{deviceName}:1",
+							Type = "Interface",
+							DisplayName = new Dictionary<string, string> {
+								{ "en", "Interface" },
+								{ "ja", "インターフェイス" }
+							},
+							Contents = dtifs
+						}
+					}
+				}
+			};
+
+			var option = new JsonSerializerOptions {
+				WriteIndented = true,
+				IgnoreNullValues = true,
+				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+			};
+			return JsonSerializer.Serialize(deviceTemplate, option);
+		}
 
 		public static uint GetAccessValue(ELProperty property)
 		{
@@ -88,7 +145,8 @@ namespace IoTHubReader.Client.Pages
 			return result;
 		}
 
-		public static void MakeDTInterface(List<DTInterfaceContent> dtifs, int index, uint accessValue,
+		public static void MakeDTInterface(List<DTInterfaceContent> dtifs, int index,
+			string deviceName, uint accessValue,
 			string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
 		{
 			DTInterfaceType if_type;
@@ -181,15 +239,18 @@ namespace IoTHubReader.Client.Pages
 
 				var name = make_digital_twin_id(propertyNameEn);
 
-				string temp;
 				if (index == 0) {
-					temp = $"urn:EchonetLite:{name}:1";
+					if (String.IsNullOrEmpty(deviceName))
+						ifcnt.Id = $"urn:EchonetLite:{name}:1";
+					else
+						ifcnt.Id = $"urn:EchonetLite:{deviceName}:{name}:1";
 				}
 				else {
-					temp = $"urn:EchonetLite:{name}{index + 1}:1";
+					if (String.IsNullOrEmpty(deviceName))
+						ifcnt.Id = $"urn:EchonetLite:{name}{index + 1}:1";
+					else
+						ifcnt.Id = $"urn:EchonetLite:{deviceName}:{name}{index + 1}:1";
 				}
-
-				ifcnt.Id = temp;
 
 				switch (if_type) {
 				case DTInterfaceType.Command:
@@ -443,14 +504,17 @@ namespace IoTHubReader.Client.Pages
 		[JsonPropertyName("@type")]
 		public string Type { get; set; }
 
+		[JsonPropertyName("name")]
+		public string Name { get; set; }
+
 		[JsonPropertyName("description")]
 		public Dictionary<string, string> Description { get; set; }
 
 		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; set; }
 
-		[JsonPropertyName("schema")]
-		public List<DTSchema> Schema { get; internal set; }
+		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
+		public DTSchema Schema { get; internal set; }
 	}
 
 	public class DTInterfaceContent
@@ -473,7 +537,7 @@ namespace IoTHubReader.Client.Pages
 		[JsonPropertyName("commandType")]
 		public string CommandType { get; internal set; }
 
-		[JsonPropertyName("schema")]
+		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
 		public DTSchema Schema { get; internal set; }
 
 		[JsonPropertyName("writable")]
@@ -491,9 +555,18 @@ namespace IoTHubReader.Client.Pages
 
 	public class DTSchema
 	{
+		[JsonPropertyName("@id")]
+		public string Id { get; set; }
+
 		[JsonPropertyName("@type")]
 		public string Type { get; internal set; }
-		
+
+		[JsonPropertyName("description")]
+		public Dictionary<string, string> Description { get; set; }
+
+		[JsonPropertyName("displayName")]
+		public Dictionary<string, string> DisplayName { get; set; }
+
 		[JsonPropertyName("fields")]
 		public List<DTField> Fields { get; internal set; }
 
@@ -502,6 +575,9 @@ namespace IoTHubReader.Client.Pages
 
 		[JsonPropertyName("enumValues")]
 		public List<DTEnumValue> EnumValues { get; internal set; }
+
+		[JsonPropertyName("contents")]
+		public List<DTInterfaceContent> Contents { get; internal set; }
 	}
 
 	public class DTCommandPayload
@@ -512,7 +588,7 @@ namespace IoTHubReader.Client.Pages
 		[JsonPropertyName("name")]
 		public string Name { get; internal set; }
 
-		[JsonPropertyName("schema")]
+		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
 		public DTSchema Schema { get; internal set; }
 
 		[JsonPropertyName("displayName")]
@@ -527,7 +603,7 @@ namespace IoTHubReader.Client.Pages
 		[JsonPropertyName("name")]
 		public string Name { get; internal set; }
 
-		[JsonPropertyName("schema")]
+		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
 		public DTSchema Schema { get; internal set; }
 	}
 
@@ -541,5 +617,49 @@ namespace IoTHubReader.Client.Pages
 
 		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; internal set; }
+	}
+
+	public class DTSchemaConverter : JsonConverter<DTSchema>
+	{
+		public override bool CanConvert(Type typeToConvert)
+		{
+			if (typeToConvert == typeof(string))
+				return true;
+			if (typeToConvert == typeof(DTSchema))
+				return true;
+			return false;
+		}
+
+		public override DTSchema Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (typeToConvert == typeof(string)) {
+				return new DTSchema {
+				  Type = reader.GetString()
+				};
+			}
+
+			return JsonSerializer.Deserialize<DTSchema>(ref reader, options);
+		}
+
+		public override void Write(Utf8JsonWriter writer, DTSchema value, JsonSerializerOptions options)
+		{
+			switch (value.Type) {
+			case "boolean":
+			case "date":
+			case "datetime":
+			case "double":
+			case "duration":
+			case "float":
+			case "integer":
+			case "long":
+			case "string":
+			case "time":
+				writer.WriteStringValue(value.Type);
+				break;
+			default:
+				JsonSerializer.Serialize(writer, value, options);
+				break;
+			}
+		}
 	}
 }

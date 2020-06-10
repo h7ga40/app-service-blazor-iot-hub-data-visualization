@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using BlazorFileSaver;
 
 namespace IoTHubReader.Client
 {
@@ -18,6 +19,8 @@ namespace IoTHubReader.Client
 		{
 			var builder = WebAssemblyHostBuilder.CreateDefault(args);
 			builder.RootComponents.Add<App>("app");
+
+			builder.Services.AddBlazorFileSaver();
 
 			builder.Services.AddHttpClient("IoTHubReader.Client", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress));
 

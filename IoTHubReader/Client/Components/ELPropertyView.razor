@@ -1,15 +1,18 @@
 @using System.Text.Json
 @using IoTHubReader.Client.Pages
 
-@if (Property != null) {
+@if (property != null) {
 	<h3>
-		@Property.Ja
+		@property.Ja
 	</h3>
-	<div>@($"Get:{Property.Get}, Set:{Property.Set}, Inf:{Property.Inf}")</div>
+	<div>@($"Get:{property.Get}, Set:{property.Set}, Inf:{property.Inf}")</div>
 	<pre>@GetDataInfo()</pre>
 }
 
 @code{
+	[Parameter]
+	public ELDevice Device { get; set; }
+
 	ELProperty property;
 	[Parameter]
 	public ELProperty Property { get { return property; } set { SetProperty(value); } }
@@ -19,17 +22,19 @@
 	protected void SetProperty(ELProperty property)
 	{
 		this.property = property;
-		if (property == null)
+		if (property == null) {
 			return;
+		}
 
 		dtifs.Clear();
+		string deviceName = Counter.make_digital_twin_id(Device.En);
 
-		Counter.MakeDTInterface(dtifs, 0, Counter.GetAccessValue(property),
-			property.Ja, property.En, property.Data);
+		Counter.MakeDTInterface(dtifs, 0, deviceName, Counter.GetAccessValue(property),
+		property.Ja, property.En, property.Data);
 
 		if (property.OneOf != null) {
 			foreach (var one in property.OneOf) {
-				Counter.MakeDTInterface(dtifs, 0, Counter.GetAccessValue(one),
+				Counter.MakeDTInterface(dtifs, 0, deviceName, Counter.GetAccessValue(one),
 					one.Ja, one.En, one.Data);
 			}
 		}
@@ -37,15 +42,18 @@
 
 	public string GetDataInfo()
 	{
-		var data = Property.Data;
-		var option = new JsonSerializerOptions { WriteIndented = true, IgnoreNullValues = true };
-
+		var option = new JsonSerializerOptions {
+			WriteIndented = true,
+			IgnoreNullValues = true,
+			Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+		};
 #if false
-	if (data.Reference != null) {
-		return JsonSerializer.Serialize(data.Reference, option); ;
-	}
+var data = Property.Data;
+if (data.Reference != null) {
+return JsonSerializer.Serialize(data.Reference, option); ;
+}
 
-	return JsonSerializer.Serialize(data, option);
+return JsonSerializer.Serialize(data, option);
 #else
 		return JsonSerializer.Serialize(dtifs.ToArray(), option);
 #endif

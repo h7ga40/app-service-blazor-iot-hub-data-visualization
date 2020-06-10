@@ -3,15 +3,21 @@
 	<h2>
 		@Device.Ja
 	</h2>
-	<BSTabGroup ShownEvent="@Shown" HiddenEvent="@Hidden">
+	<BSTabGroup>
 		<BSTabList>
-			@foreach (var prop in Device.Properties) {
-				<BSTab>
-					<BSTabLabel>@("0x" + prop.Epc.ToString("X02"))</BSTabLabel>
-					<BSTabContent>
-						<ELPropertyView Property="@prop" />
-					</BSTabContent>
-				</BSTab>
+			@{
+				int i = 0;
+				foreach (var tab in tabs) {
+					if (i >= propCount)
+						break;
+					i++;
+					<BSTab @ref="tab.Tab">
+						<BSTabLabel>@("0x" + tab.Property.Epc.ToString("X02"))</BSTabLabel>
+						<BSTabContent>
+							<ELPropertyView Device="@Device" Property="@tab.Property" />
+						</BSTabContent>
+					</BSTab>
+				}
 			}
 		</BSTabList>
 		<BSTabSelectedContent />
@@ -19,20 +25,34 @@
 }
 
 @code{
+	ELDevice device;
 	[Parameter]
-	public ELDevice Device { get; set; }
+	public ELDevice Device { get { return device; } set { SetDevice(value); } }
 
-	public BSTabBase tab;
-
-	private void Shown(BSTabEvent e)
+	class TabInfo
 	{
-		tab = e.Activated;
-		Console.WriteLine($"Shown  -> Activated: {e.Activated?.Id.ToString()} , Deactivated: {e.Deactivated?.Id.ToString()}");
+		public ELProperty Property;
+		public BSTab Tab;
 	}
 
-	private void Hidden(BSTabEvent e)
+	List<TabInfo> tabs = new List<TabInfo>();
+	int propCount = 0;
+
+	private void SetDevice(ELDevice device)
 	{
-		tab = e.Activated;
-		Console.WriteLine($"Hidden -> Activated: {e.Activated?.Id.ToString()} , Deactivated: {e.Deactivated?.Id.ToString()}");
+		this.device = device;
+		if (device == null) {
+			propCount = 0;
+			return;
+		}
+
+		int i = 0;
+		foreach (var prop in device.Properties) {
+			TabInfo tab = (i < tabs.Count) ? tabs[i] : new TabInfo();
+			tab.Property = prop;
+			tabs.Add(tab);
+			i++;
+		}
+		propCount = i;
 	}
 }
