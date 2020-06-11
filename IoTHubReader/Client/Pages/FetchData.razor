@@ -32,9 +32,8 @@ else {
 		<thead>
 			<tr>
 				<th>Time</th>
-				<th>Temp. (C)</th>
-				<th>Temp. (F)</th>
-				<th>Humidity(F)</th>
+				<th>Temp. (℃)</th>
+				<th>Humidity(％)</th>
 				<th>Summary</th>
 			</tr>
 		</thead>
@@ -42,8 +41,7 @@ else {
 			@foreach (var forecast in forecasts) {
 				<tr>
 					<td>@forecast.Date.ToString()</td>
-					<td>@forecast.TemperatureC</td>
-					<td>@forecast.TemperatureF</td>
+					<td>@forecast.Temperature</td>
 					<td>@forecast.Humidity</td>
 					<td>@forecast.Summary</td>
 				</tr>
@@ -56,8 +54,8 @@ else {
 	LineConfig _lineConfig;
 	ChartJsLineChart _lineChartJs;
 	private List<Telemetry> forecasts = new List<Telemetry>();
-	LineDataset<TimeTuple<int>> _tempDataSet;
-	LineDataset<TimeTuple<int>> _humiDataSet;
+	LineDataset<TimeTuple<double>> _tempDataSet;
+	LineDataset<TimeTuple<double>> _humiDataSet;
 	CancellationTokenSource disposalTokenSource = new CancellationTokenSource();
 	ClientWebSocket webSocket = new ClientWebSocket();
 
@@ -134,9 +132,9 @@ else {
 			}
 		};
 
-		forecasts.AddRange(await Http.GetFromJsonAsync<Telemetry[]>("Telemetry"));
+		//forecasts.AddRange(await Http.GetFromJsonAsync<Telemetry[]>("Telemetry"));
 
-		_tempDataSet = new LineDataset<TimeTuple<int>> {
+		_tempDataSet = new LineDataset<TimeTuple<double>> {
 			BackgroundColor = ColorUtil.RandomColorString(),
 			BorderColor = ColorUtil.RandomColorString(),
 			Label = "Temperature in ℃",
@@ -148,10 +146,10 @@ else {
 			YAxisID = "Temperature",
 		};
 
-		_tempDataSet.AddRange(forecasts.Select(p => new TimeTuple<int>(new Moment(p.Date), p.TemperatureC)));
+		_tempDataSet.AddRange(forecasts.Select(p => new TimeTuple<double>(new Moment(p.Date), p.Temperature)));
 		_lineConfig.Data.Datasets.Add(_tempDataSet);
 
-		_humiDataSet = new LineDataset<TimeTuple<int>> {
+		_humiDataSet = new LineDataset<TimeTuple<double>> {
 			BackgroundColor = ColorUtil.RandomColorString(),
 			BorderColor = ColorUtil.RandomColorString(),
 			Label = "Humidity",
@@ -163,7 +161,7 @@ else {
 			YAxisID = "Humidity",
 		};
 
-		_humiDataSet.AddRange(forecasts.Select(p => new TimeTuple<int>(new Moment(p.Date), p.Humidity)));
+		_humiDataSet.AddRange(forecasts.Select(p => new TimeTuple<double>(new Moment(p.Date), p.Humidity)));
 		_lineConfig.Data.Datasets.Add(_humiDataSet);
 
 		var url = new UriBuilder(Http.BaseAddress);
@@ -181,18 +179,20 @@ else {
 
 	async Task ReceiveLoop()
 	{
+		var options = new System.Text.Json.JsonSerializerOptions {
+			PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+		};
 		var buffer = new ArraySegment<byte>(new byte[4 * 1024]);
 		while (!disposalTokenSource.IsCancellationRequested) {
 			var received = await webSocket.ReceiveAsync(buffer, disposalTokenSource.Token);
-			Console.WriteLine($"webSocket.ReceiveAsync {received.Count}");
 			try {
 				var stream = new MemoryStream(buffer.Array, 0, received.Count);
 				var message = await System.Text.Json.JsonSerializer.DeserializeAsync<WSMessage>(stream);
-				var forecast = System.Text.Json.JsonSerializer.Deserialize<Telemetry>(Convert.FromBase64String(message.IotData));
+				var forecast = System.Text.Json.JsonSerializer.Deserialize<Telemetry>(Convert.FromBase64String(message.IotData), options);
+				forecast.Date = message.MessageDate;
 				forecasts.Add(forecast);
-				Console.WriteLine($"JsonSerializer.DeserializeAsync {forecasts.Count}");
-				_tempDataSet.Add(new TimeTuple<int>(new Moment(forecast.Date), forecast.TemperatureC));
-				_humiDataSet.Add(new TimeTuple<int>(new Moment(forecast.Date), forecast.Humidity));
+				_tempDataSet.Add(new TimeTuple<double>(new Moment(forecast.Date), forecast.Temperature));
+				_humiDataSet.Add(new TimeTuple<double>(new Moment(forecast.Date), forecast.Humidity));
 				StateHasChanged();
 			}
 			catch (Exception e) {

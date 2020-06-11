@@ -35,14 +35,14 @@ namespace Microsoft.Azure.Devices.Client.Samples
 			for (int count = 0; count < MessageCount; count++) {
 				var senserData = new Telemetry {
 					Date = date.AddSeconds(count),
-					TemperatureC = s_randomGenerator.Next(20, 35),
+					Temperature = s_randomGenerator.Next(20, 35),
 					Humidity = s_randomGenerator.Next(60, 80),
 					Summary = ""
 				};
 				string dataBuffer = JsonSerializer.Serialize(senserData);
 
 				using (var eventMessage = new Message(Encoding.UTF8.GetBytes(dataBuffer))) {
-					eventMessage.Properties.Add("temperatureAlert", (senserData.TemperatureC > TemperatureThreshold) ? "true" : "false");
+					eventMessage.Properties.Add("temperatureAlert", (senserData.Temperature > TemperatureThreshold) ? "true" : "false");
 					Console.WriteLine("\t{0}> Sending message: {1}, Data: [{2}]", DateTime.Now.ToLocalTime(), count, dataBuffer);
 
 					await _deviceClient.SendEventAsync(eventMessage).ConfigureAwait(false);

@@ -31,7 +31,7 @@ namespace IoTHubReader.Server.Controllers
 			var date = DateTime.Now.AddSeconds(-5);
 			return Enumerable.Range(1, 5).Select(index => new Telemetry {
 				Date = date.AddSeconds(index),
-				TemperatureC = rng.Next(20, 35),
+				Temperature = rng.Next(20, 35),
 				Humidity = rng.Next(60, 80),
 				Summary = Summaries[rng.Next(Summaries.Length)]
 			})
