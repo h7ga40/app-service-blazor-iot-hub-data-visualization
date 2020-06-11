@@ -10,6 +10,8 @@
 	<link href="css/app.css" rel="stylesheet" />
 	<link rel="stylesheet" href="_content\BlazorStrap\css\cromefix.css" />
 	<link rel="stylesheet" href="_content\BlazorStrap\css\submenu.css" />
+	<link href="manifest.json" rel="manifest" />
+	<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
 </head>
 
 <body>
@@ -28,6 +30,7 @@
 	<script src="_content/ChartJs.Blazor/Chart.min.js" type="text/javascript" language="javascript"></script>
 	<script src="_content/ChartJs.Blazor/ChartJsBlazorInterop.js" type="text/javascript" language="javascript"></script>
 	<link rel="stylesheet" href="_content/ChartJs.Blazor/ChartJSBlazor.css" />
+	<script>navigator.serviceWorker.register('service-worker.js');</script>
 </body>
 
 </html>
