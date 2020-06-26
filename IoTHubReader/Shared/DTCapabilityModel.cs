@@ -19,8 +19,8 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@id")]
 		public string Id { get; set; }
 
-		[JsonPropertyName("@type")]
-		public string Type { get; set; }
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
 
 		[JsonPropertyName("description")]
 		public Dictionary<string, string> Description { get; set; }
@@ -28,8 +28,8 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; set; }
 
-		[JsonPropertyName("@context")]
-		public string Context { get; set; }
+		[JsonPropertyName("@context"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Context { get; set; }
 
 		[JsonPropertyName("implements")]
 		public List<DTInterfaceInstance> Implements { get; set; }
@@ -40,8 +40,8 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@id")]
 		public string Id { get; set; }
 
-		[JsonPropertyName("@type")]
-		public string Type { get; set; }
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
 
 		[JsonPropertyName("name")]
 		public string Name { get; set; }
@@ -61,11 +61,11 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@id")]
 		public string Id { get; set; }
 
-		[JsonPropertyName("@type")]
-		public string Type { get; set; }
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
 
-		[JsonPropertyName("@context")]
-		public string Context { get; set; }
+		[JsonPropertyName("@context"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Context { get; set; }
 
 		[JsonPropertyName("name")]
 		public string Name { get; set; }
@@ -80,13 +80,19 @@ namespace IoTHubReader.Shared
 		public DTSchema Schema { get; set; }
 
 		[JsonPropertyName("writable")]
-		public bool Writable { get; set; }
+		public bool? Writable { get; set; }
+
+		[JsonPropertyName("durable")]
+		public bool? Durable { get; set; }
 
 		[JsonPropertyName("request")]
 		public DTCommandPayload Request { get; set; }
 
 		[JsonPropertyName("response")]
 		public DTCommandPayload Response { get; set; }
+
+		[JsonPropertyName("unit")]
+		public string Unit { get; set; }
 
 		[JsonPropertyName("displayUnit")]
 		public string DisplayUnit { get; set; }
@@ -97,8 +103,8 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@id")]
 		public string Id { get; set; }
 
-		[JsonPropertyName("@type")]
-		public string Type { get; set; }
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
 
 		[JsonPropertyName("description")]
 		public Dictionary<string, string> Description { get; set; }
@@ -148,6 +154,12 @@ namespace IoTHubReader.Shared
 
 	public class DTEnumValue
 	{
+		[JsonPropertyName("@id")]
+		public string Id { get; set; }
+
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
+
 		[JsonPropertyName("name")]
 		public string Name { get; set; }
 
@@ -156,6 +168,45 @@ namespace IoTHubReader.Shared
 
 		[JsonPropertyName("displayName")]
 		public Dictionary<string, string> DisplayName { get; set; }
+	}
+
+	public class StringList : List<string>
+	{
+		public static implicit operator StringList(string value)
+		{
+			return new StringList { value };
+		}
+	}
+
+	public class DTStringListConverter : JsonConverter<StringList>
+	{
+		public override bool CanConvert(Type typeToConvert)
+		{
+			if (typeToConvert == typeof(string))
+				return true;
+			if (typeToConvert == typeof(StringList))
+				return true;
+			return false;
+		}
+
+		public override StringList Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (reader.TokenType == JsonTokenType.String) {
+				return new StringList {
+					reader.GetString()
+				};
+			}
+
+			return JsonSerializer.Deserialize<StringList>(ref reader, options);
+		}
+
+		public override void Write(Utf8JsonWriter writer, StringList value, JsonSerializerOptions options)
+		{
+			if (value.Count == 1)
+				writer.WriteStringValue(value[0]);
+			else
+				JsonSerializer.Serialize(writer, value, options);
+		}
 	}
 
 	public class DTSchemaConverter : JsonConverter<DTSchema>
@@ -171,7 +222,7 @@ namespace IoTHubReader.Shared
 
 		public override DTSchema Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			if (typeToConvert == typeof(string)) {
+			if (reader.TokenType == JsonTokenType.String) {
 				return new DTSchema {
 					Type = reader.GetString()
 				};
@@ -182,22 +233,29 @@ namespace IoTHubReader.Shared
 
 		public override void Write(Utf8JsonWriter writer, DTSchema value, JsonSerializerOptions options)
 		{
-			switch (value.Type) {
-			case "boolean":
-			case "date":
-			case "datetime":
-			case "double":
-			case "duration":
-			case "float":
-			case "integer":
-			case "long":
-			case "string":
-			case "time":
-				writer.WriteStringValue(value.Type);
-				break;
-			default:
+			string type;
+			if (value.Type.Count == 1) {
+				type = value.Type[0];
+				switch (type) {
+				case "boolean":
+				case "date":
+				case "datetime":
+				case "double":
+				case "duration":
+				case "float":
+				case "integer":
+				case "long":
+				case "string":
+				case "time":
+					writer.WriteStringValue(type);
+					break;
+				default:
+					JsonSerializer.Serialize(writer, value, options);
+					break;
+				}
+			}
+			else {
 				JsonSerializer.Serialize(writer, value, options);
-				break;
 			}
 		}
 	}
