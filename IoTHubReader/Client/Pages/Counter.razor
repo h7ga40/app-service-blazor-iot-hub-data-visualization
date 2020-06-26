@@ -1,7 +1,6 @@
 ﻿@page "/counter"
 @using System.Net
 @using System.Text.Json
-@using IoTCentral
 @using BlazorFileSaver
 
 @inject IHttpClientFactory httpClientFactory
@@ -130,7 +129,7 @@
 			Program.SharedAccessSignature = accessToken;
 
 		var httpClient = httpClientFactory.CreateClient("IoTCentral");
-		var client = new ApiTokensClient(httpClient);
+		var client = new DeviceTemplatesClient(httpClient);
 		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
 		var result = await client.ListAsync();
 		if (result == null) {
@@ -138,8 +137,14 @@
 			return;
 		}
 
-		foreach (var r in result.Value) {
-			currentCount += $"Id:{r.Id}, Expiry:{r.Expiry}, Token:{r.Token}, Roles:[{String.Join(",", r.Roles)}]";
+		currentCount = "";
+		foreach (var deviceTemplate in result.Value) {
+			var option = new JsonSerializerOptions {
+				WriteIndented = true,
+				IgnoreNullValues = true,
+				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+			};
+			currentCount += JsonSerializer.Serialize(deviceTemplate, option);
 		}
 	}
 
