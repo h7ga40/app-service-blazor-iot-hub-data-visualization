@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace IoTHubReader.Shared
 {
@@ -25,7 +27,7 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("description")]
 		public Dictionary<string, string> Description { get; set; }
 
-		[JsonPropertyName("displayName")]
+		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public Dictionary<string, string> DisplayName { get; set; }
 
 		[JsonPropertyName("@context"), JsonConverter(typeof(DTStringListConverter))]
@@ -49,7 +51,7 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("description")]
 		public Dictionary<string, string> Description { get; set; }
 
-		[JsonPropertyName("displayName")]
+		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public Dictionary<string, string> DisplayName { get; set; }
 
 		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
@@ -70,7 +72,7 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("name")]
 		public string Name { get; set; }
 
-		[JsonPropertyName("displayName")]
+		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public Dictionary<string, string> DisplayName { get; set; }
 
 		[JsonPropertyName("commandType")]
@@ -109,7 +111,7 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("description")]
 		public Dictionary<string, string> Description { get; set; }
 
-		[JsonPropertyName("displayName")]
+		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public Dictionary<string, string> DisplayName { get; set; }
 
 		[JsonPropertyName("fields")]
@@ -136,7 +138,7 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
 		public DTSchema Schema { get; set; }
 
-		[JsonPropertyName("displayName")]
+		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public Dictionary<string, string> DisplayName { get; set; }
 
 		[JsonPropertyName("displayUnit")]
@@ -166,8 +168,76 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("enumValue")]
 		public long EnumValue { get; set; }
 
-		[JsonPropertyName("displayName")]
+		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public Dictionary<string, string> DisplayName { get; set; }
+	}
+
+	public class DTLocalizableConverter : JsonConverter<Dictionary<string, string>>
+	{
+		public override bool CanConvert(Type typeToConvert)
+		{
+			if (typeToConvert == typeof(string))
+				return true;
+			if (typeToConvert == typeof(Dictionary<string, string>))
+				return true;
+			return false;
+		}
+
+		public override Dictionary<string, string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (reader.TokenType == JsonTokenType.String) {
+				return new Dictionary<string, string> {
+					{ "en", reader.GetString() }
+				};
+			}
+
+			return JsonSerializer.Deserialize<Dictionary<string, string>>(ref reader, options);
+		}
+
+		public override void Write(Utf8JsonWriter writer, Dictionary<string, string> value, JsonSerializerOptions options)
+		{
+			if (value.Count == 1 && value.ContainsKey("en"))
+				writer.WriteStringValue(value["en"]);
+			else
+				JsonSerializer.Serialize(writer, value, options);
+		}
+
+		public static string MakeDigitalTwinId(string id)
+		{
+			int i = 0, len = id.Length;
+			char[] temp = new char[len];
+
+			for (char c = id[i]; (i < len) && ((c = id[i]) != '\0'); i++) {
+				if (((c >= '0') && (c <= '9')) || (c == '_')
+					|| ((c >= 'A') && (c <= 'Z'))
+					|| ((c >= 'a') && (c <= 'z'))) {
+					temp[i] = c;
+				}
+				else {
+					temp[i] = '_';
+				}
+			}
+
+			return ToPascalCase(new string(temp));
+		}
+
+		public static string ToPascalCase(string str)
+		{
+			var ms = Regex.Matches(str, "_([a-z])");
+			if (ms.Count == 0)
+				return str;
+
+			var result = "";
+			int index = 0;
+			foreach (Match m in ms) {
+				result += str.Substring(index, m.Index - index);
+				result += m.Groups[1].Value.ToUpper();
+				index = m.Index + m.Length;
+			}
+			result += str.Substring(index, str.Length - index);
+
+			return result;
+		}
 	}
 
 	public class StringList : List<string>
@@ -247,6 +317,7 @@ namespace IoTHubReader.Shared
 				case "long":
 				case "string":
 				case "time":
+				case "vector":
 					writer.WriteStringValue(type);
 					break;
 				default:

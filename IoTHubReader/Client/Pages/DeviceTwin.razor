@@ -1,0 +1,192 @@
+﻿@page "/device_twin"
+@using System.Net
+@using System.Text.Json
+@using BlazorFileSaver
+
+@inject IHttpClientFactory httpClientFactory
+
+<h1>Device twin</h1>
+
+@if ((DeviceDescription != null) && (DeviceDescription.Devices?.Count > 0)) {
+	<BSPagination Alignment="Alignment.Center">
+		<BSPaginationItem>
+			<BSPaginationLink PaginationLinkType="PaginationLinkType.PreviousIcon" @onclick="() => MovePage(-ViewCount)" />
+		</BSPaginationItem>
+		@{
+			int viewCount = ViewCount, s = start;
+			if (start > 0) {
+				var device = DeviceDescription.Devices[0];
+				<BSPaginationItem>
+					<BSPaginationLink @onclick="() => { start = 0; OnDeviceClick(device); }">@device.Code</BSPaginationLink>
+				</BSPaginationItem>
+				viewCount--;
+				s++;
+				<BSPaginationItem>
+					<BSPaginationLink @onclick="() => MovePage(-1)">...</BSPaginationLink>
+				</BSPaginationItem>
+			}
+			if (s + viewCount < DeviceDescription.Devices.Count) {
+				viewCount--;
+			}
+
+			for (var i = s; i < s + viewCount; i++) {
+				if (i >= DeviceDescription.Devices.Count)
+					break;
+				var device = DeviceDescription.Devices[i];
+				<BSPaginationItem>
+					<BSPaginationLink @onclick="() => OnDeviceClick(device)">@device.Code</BSPaginationLink>
+				</BSPaginationItem>
+			}
+
+			if (s + viewCount < DeviceDescription.Devices.Count) {
+				<BSPaginationItem>
+					<BSPaginationLink @onclick="() => MovePage(1)">...</BSPaginationLink>
+				</BSPaginationItem>
+				var device = DeviceDescription.Devices[DeviceDescription.Devices.Count - 1];
+				<BSPaginationItem>
+					<BSPaginationLink @onclick="() => { start = Last(); OnDeviceClick(device); }">@device.Code</BSPaginationLink>
+				</BSPaginationItem>
+			}
+		}
+		<BSPaginationItem>
+			<BSPaginationLink PaginationLinkType="PaginationLinkType.NextIcon" @onclick="() => MovePage(ViewCount)" />
+		</BSPaginationItem>
+	</BSPagination>
+
+	@if (device != null) {
+		<input type="text" @bind="FileName" />
+		<BSButton Color="Color.Primary" @onclick="Save">Save</BSButton>
+	}
+
+	<ELDeviceView Device="@device" />
+}
+
+<h1>IoT Central</h1>
+
+<div>
+	<BSForm Model="@formsModelVal" ValidateOnInit="false">
+		<DataAnnotationsValidator />
+		<BSFormGroup style="position: relative;">
+			<BSLabel For="subdomain">アプリケーション名</BSLabel>
+			<BSInput Id="subdomain" InputType="InputType.Text" PlaceHolder="[APP_NAME].azureiotcentral.com" @bind-Value="formsModelVal.Subdomain" />
+			<BSFormFeedback For="@(() => formsModelVal.Subdomain)" IsTooltip="true" InvalidMessage="[APP_NAME].azureiotcentral.com" />
+		</BSFormGroup>
+		<BSFormGroup style="position: relative;">
+			<BSLabel For="accessToken">アクセストークン</BSLabel>
+			<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
+			<BSFormFeedback For="@(() => formsModelVal.AccessToken)" IsTooltip="true" InvalidMessage="SharedAccessSignature sr=xxxx..." />
+		</BSFormGroup>
+		<BSButton Color="Color.Primary" @onclick="OnSave">Click me</BSButton>
+	</BSForm>
+</div>
+
+<p>Response: @currentCount</p>
+
+@code {
+	private string currentCount = "";
+	private FormsModel formsModelVal = new FormsModel();
+	private string centralDnsSuffixInPath = "azureiotcentral.com";
+	private string token_id = "blazor";
+	private int start;
+	private ELDevice device;
+	const int ViewCount = 5;
+
+	[Inject]
+	private IBlazorFileSaver BlazorFileSaver { get; set; }
+	private string FileName { get; set; } = "EchonetLite.json";
+
+	class FormsModel
+	{
+		public string Subdomain { get; set; }
+		public string AccessToken { get; set; }
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (DeviceDescription == null) {
+			var httpClient = httpClientFactory.CreateClient("IoTHubReader.Client");
+			var responce = await httpClient.GetAsync("AppendixData/EL_DeviceDescription_3_1_5r4.json");
+			if (responce.StatusCode == HttpStatusCode.OK)
+				ReadELDeviceDescription(await responce.Content.ReadAsByteArrayAsync());
+		}
+
+		await base.OnInitializedAsync();
+	}
+
+	private async Task OnSave()
+	{
+		var accessToken = formsModelVal.AccessToken;
+		var subdomain = formsModelVal.Subdomain;
+
+		if (String.IsNullOrEmpty(accessToken) || String.IsNullOrEmpty(accessToken)) {
+			currentCount = "入力して";
+			return;
+		}
+
+		if (accessToken.StartsWith("SharedAccessSignature "))
+			Program.SharedAccessSignature = accessToken.Substring(22);
+		else
+			Program.SharedAccessSignature = accessToken;
+
+		var httpClient = httpClientFactory.CreateClient("IoTCentral");
+		var client = new DeviceTemplatesClient(httpClient);
+		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
+		var result = await client.ListAsync();
+		if (result == null) {
+			currentCount = "error";
+			return;
+		}
+
+		currentCount = "";
+		foreach (var deviceTemplate in result.Value) {
+			var option = new JsonSerializerOptions {
+				WriteIndented = true,
+				IgnoreNullValues = true,
+				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+			};
+			currentCount += JsonSerializer.Serialize(deviceTemplate, option);
+		}
+	}
+
+	private int Last()
+	{
+		var result = DeviceDescription.Devices.Count - ViewCount;
+		if (result < 0)
+			result = 0;
+		return result;
+	}
+
+	private void OnDeviceClick(ELDevice device)
+	{
+		this.device = device;
+	}
+
+	private void MovePage(int offset)
+	{
+		if (DeviceDescription?.Devices == null)
+			return;
+
+		start += offset;
+		if (start < 0)
+			start = 0;
+
+		var count = DeviceDescription.Devices.Count;
+		if (count <= ViewCount) {
+			start = 0;
+			return;
+		}
+
+		if (start + ViewCount >= count)
+			start = count - ViewCount;
+	}
+
+	private async Task Save()
+	{
+		if (device == null)
+			return;
+
+		var Data = MakeDeviceTemplate(device);
+
+		await BlazorFileSaver.SaveAs(FileName, Data);
+	}
+}
