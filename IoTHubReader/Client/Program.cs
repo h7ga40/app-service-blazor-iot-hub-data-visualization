@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using BlazorFileSaver;
+using Blazor.FileReader;
 
 namespace IoTHubReader.Client
 {
@@ -21,6 +22,7 @@ namespace IoTHubReader.Client
 			builder.RootComponents.Add<App>("app");
 
 			builder.Services.AddBlazorFileSaver();
+			builder.Services.AddFileReaderService(options => options.UseWasmSharedBuffer = true);
 
 			builder.Services.AddHttpClient("IoTHubReader.Client", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress));
 

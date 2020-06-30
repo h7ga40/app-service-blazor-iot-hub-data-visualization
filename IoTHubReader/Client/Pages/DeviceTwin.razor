@@ -1,65 +1,13 @@
 ﻿@page "/device_twin"
+@using System.IO
 @using System.Net
 @using System.Text.Json
 @using BlazorFileSaver
+@using Blazor.FileReader
+@using IoTHubReader.Client.Components
 
 @inject IHttpClientFactory httpClientFactory
-
-<h1>Device twin</h1>
-
-@if ((DeviceDescription != null) && (DeviceDescription.Devices?.Count > 0)) {
-	<BSPagination Alignment="Alignment.Center">
-		<BSPaginationItem>
-			<BSPaginationLink PaginationLinkType="PaginationLinkType.PreviousIcon" @onclick="() => MovePage(-ViewCount)" />
-		</BSPaginationItem>
-		@{
-			int viewCount = ViewCount, s = start;
-			if (start > 0) {
-				var device = DeviceDescription.Devices[0];
-				<BSPaginationItem>
-					<BSPaginationLink @onclick="() => { start = 0; OnDeviceClick(device); }">@device.Code</BSPaginationLink>
-				</BSPaginationItem>
-				viewCount--;
-				s++;
-				<BSPaginationItem>
-					<BSPaginationLink @onclick="() => MovePage(-1)">...</BSPaginationLink>
-				</BSPaginationItem>
-			}
-			if (s + viewCount < DeviceDescription.Devices.Count) {
-				viewCount--;
-			}
-
-			for (var i = s; i < s + viewCount; i++) {
-				if (i >= DeviceDescription.Devices.Count)
-					break;
-				var device = DeviceDescription.Devices[i];
-				<BSPaginationItem>
-					<BSPaginationLink @onclick="() => OnDeviceClick(device)">@device.Code</BSPaginationLink>
-				</BSPaginationItem>
-			}
-
-			if (s + viewCount < DeviceDescription.Devices.Count) {
-				<BSPaginationItem>
-					<BSPaginationLink @onclick="() => MovePage(1)">...</BSPaginationLink>
-				</BSPaginationItem>
-				var device = DeviceDescription.Devices[DeviceDescription.Devices.Count - 1];
-				<BSPaginationItem>
-					<BSPaginationLink @onclick="() => { start = Last(); OnDeviceClick(device); }">@device.Code</BSPaginationLink>
-				</BSPaginationItem>
-			}
-		}
-		<BSPaginationItem>
-			<BSPaginationLink PaginationLinkType="PaginationLinkType.NextIcon" @onclick="() => MovePage(ViewCount)" />
-		</BSPaginationItem>
-	</BSPagination>
-
-	@if (device != null) {
-		<input type="text" @bind="FileName" />
-		<BSButton Color="Color.Primary" @onclick="Save">Save</BSButton>
-	}
-
-	<ELDeviceView Device="@device" />
-}
+@inject IFileReaderService fileReaderService
 
 <h1>IoT Central</h1>
 
@@ -76,24 +24,65 @@
 			<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
 			<BSFormFeedback For="@(() => formsModelVal.AccessToken)" IsTooltip="true" InvalidMessage="SharedAccessSignature sr=xxxx..." />
 		</BSFormGroup>
-		<BSButton Color="Color.Primary" @onclick="OnSave">Click me</BSButton>
+		<BSButton Color="Color.Primary" @onclick="OnQuery">Query</BSButton>
 	</BSForm>
 </div>
 
-<p>Response: @currentCount</p>
+<h1>Device twin</h1>
+
+<BSBasicForm>
+	<BSFormGroup>
+		<BSLabel For="deviceTwin">Device template json file</BSLabel>
+		<input @ref=inputTypeFileElement type="file" id="deviceTwin" Value="string.Empty" @onchange="ReadJson" />
+	</BSFormGroup>
+</BSBasicForm>
+
+<BSTabGroup ShownEvent="OnShown">
+	<BSTabList>
+		@{
+			int i = 0;
+			foreach (var tab in tabs) {
+				if (i >= (fileCount + queryCount))
+					break;
+				i++;
+				<BSTab @ref="tab.Tab">
+					<BSTabLabel>@(GetDisplayName(tab.Template.DisplayName))</BSTabLabel>
+					<BSTabContent>
+					</BSTabContent>
+				</BSTab>
+			}
+		}
+	</BSTabList>
+	<BSTabSelectedContent />
+</BSTabGroup>
+
+<div class="editor-box" style="position: relative; min-height: 400px;">
+	<AceEditor @ref="textEditor" OnCreate="OnCreate" OnChange="OnChange">
+	</AceEditor>
+</div>
+
+<input type="text" @bind="FileName" />
+<BSButton Color="Color.Primary" @onclick="SaveRuby">Save ruby</BSButton>
 
 @code {
-	private string currentCount = "";
+	private string ruby = "";
+	private AceEditor textEditor;
 	private FormsModel formsModelVal = new FormsModel();
 	private string centralDnsSuffixInPath = "azureiotcentral.com";
-	private string token_id = "blazor";
-	private int start;
-	private ELDevice device;
-	const int ViewCount = 5;
+	ElementReference inputTypeFileElement;
+
+	class TabInfo
+	{
+		public DTCapabilityModel Template;
+		public BSTab Tab;
+	}
+
+	List<TabInfo> tabs = new List<TabInfo>();
+	int fileCount = 0, queryCount = 0;
 
 	[Inject]
 	private IBlazorFileSaver BlazorFileSaver { get; set; }
-	private string FileName { get; set; } = "EchonetLite.json";
+	private string FileName { get; set; } = "DeviceClient.rb";
 
 	class FormsModel
 	{
@@ -103,23 +92,15 @@
 
 	protected override async Task OnInitializedAsync()
 	{
-		if (DeviceDescription == null) {
-			var httpClient = httpClientFactory.CreateClient("IoTHubReader.Client");
-			var responce = await httpClient.GetAsync("AppendixData/EL_DeviceDescription_3_1_5r4.json");
-			if (responce.StatusCode == HttpStatusCode.OK)
-				ReadELDeviceDescription(await responce.Content.ReadAsByteArrayAsync());
-		}
-
 		await base.OnInitializedAsync();
 	}
 
-	private async Task OnSave()
+	private async Task OnQuery()
 	{
 		var accessToken = formsModelVal.AccessToken;
 		var subdomain = formsModelVal.Subdomain;
 
 		if (String.IsNullOrEmpty(accessToken) || String.IsNullOrEmpty(accessToken)) {
-			currentCount = "入力して";
 			return;
 		}
 
@@ -133,60 +114,72 @@
 		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
 		var result = await client.ListAsync();
 		if (result == null) {
-			currentCount = "error";
 			return;
 		}
 
-		currentCount = "";
-		foreach (var deviceTemplate in result.Value) {
-			var option = new JsonSerializerOptions {
-				WriteIndented = true,
-				IgnoreNullValues = true,
-				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-			};
-			currentCount += JsonSerializer.Serialize(deviceTemplate, option);
+		int i = 0;
+		foreach (var dt in result.Value) {
+			TabInfo tab = (i < tabs.Count) ? tabs[i] : new TabInfo();
+			tab.Template = dt.CapabilityModel;
+			tabs.Add(tab);
+			i++;
 		}
+		queryCount = i;
 	}
 
-	private int Last()
+	public async Task ReadJson()
 	{
-		var result = DeviceDescription.Devices.Count - ViewCount;
-		if (result < 0)
-			result = 0;
-		return result;
-	}
-
-	private void OnDeviceClick(ELDevice device)
-	{
-		this.device = device;
-	}
-
-	private void MovePage(int offset)
-	{
-		if (DeviceDescription?.Devices == null)
-			return;
-
-		start += offset;
-		if (start < 0)
-			start = 0;
-
-		var count = DeviceDescription.Devices.Count;
-		if (count <= ViewCount) {
-			start = 0;
-			return;
+		int i = queryCount;
+		foreach (var file in await fileReaderService.CreateReference(inputTypeFileElement).EnumerateFilesAsync()) {
+			DTCapabilityModel capabilityModel;
+			using (var stream = await file.OpenReadAsync()) {
+				capabilityModel = await JsonSerializer.DeserializeAsync<DTCapabilityModel>(stream);
+			}
+			if (capabilityModel != null) {
+				TabInfo tab = (i < tabs.Count) ? tabs[i] : new TabInfo();
+				tab.Template = capabilityModel;
+				tabs.Add(tab);
+				i++;
+			}
 		}
-
-		if (start + ViewCount >= count)
-			start = count - ViewCount;
+		fileCount = i - queryCount;
 	}
 
-	private async Task Save()
+	private void Select(DTCapabilityModel capabilityModel)
 	{
-		if (device == null)
-			return;
+		var moduleName = GetDisplayName(capabilityModel.DisplayName);
+		FileName = moduleName + ".rb";
+		ruby = GenerateRuby(capabilityModel, moduleName);
+		textEditor.setValue(ruby);
+	}
 
-		var Data = MakeDeviceTemplate(device);
+	private async Task SaveRuby()
+	{
+		await BlazorFileSaver.SaveAs(FileName, ruby);
+	}
 
-		await BlazorFileSaver.SaveAs(FileName, Data);
+	private Task OnCreate()
+	{
+		textEditor.setTheme("ace/theme/twilight");
+		textEditor.setShowInvisibles(true);
+		textEditor.gotoLine(0, 0);
+		var session = textEditor.getSession();
+		session.setMode("ace/mode/ruby");
+		session.setTabSize(2);
+		session.setUseSoftTabs(false);
+
+		textEditor.setValue("ruby code");
+		return Task.CompletedTask;
+	}
+
+	private Task OnChange()
+	{
+		return Task.CompletedTask;
+	}
+
+	private void OnShown(BSTabEvent ev)
+	{
+		var tab = tabs.FirstOrDefault((t) => t.Tab == ev.Activated);
+		Select(tab.Template);
 	}
 }

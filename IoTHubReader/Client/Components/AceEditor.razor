@@ -1,0 +1,16 @@
+﻿@inject IJSRuntime jsRuntime
+
+<div @ref="EditorElement" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; font-size: 10pt;">
+	<textarea style="opacity: 0;" spellcheck="false" class="ace_text-input" nowrap></textarea><div class="ace_gutter"><div class="ace_layer ace_gutter-layer ace_folding-enabled"></div><div class="ace_gutter-active-line"></div></div><div class="ace_scroller"><div class="ace_content"><div class="ace_layer ace_print-margin-layer"><div style="left: 4px; visibility: visible;" class="ace_print-margin"></div></div><div class="ace_layer ace_marker-layer"></div><div style="padding: 0px 4px;" class="ace_layer ace_text-layer"></div><div class="ace_layer ace_marker-layer"></div><div class="ace_layer ace_cursor-layer ace_hidden-cursors"><div class="ace_cursor"></div></div></div></div><div style="height: auto; width: auto; top: -100px; left: -100px; visibility: hidden; position: fixed; overflow: visible; white-space: nowrap;">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</div><div style="width: 22px; display: none; overflow-y: scroll;" class="ace_scrollbar"><div style="width: 22px;" class="ace_scrollbar-inner"></div></div><div style="height: 22px; display: none; overflow-x: scroll;" class="ace_scrollbar-h">
+		<div style="height: 22px;" class="ace_scrollbar-inner">
+		</div>
+	</div>
+</div>
+
+@code {
+	protected override Task OnAfterRenderAsync(bool firstRender)
+	{
+		keyValues[EditorElement.Id] = this;
+		return jsRuntime.InvokeVoidAsync("AceEditor.createEditor", EditorElement.Id, EditorElement).AsTask();
+	}
+}

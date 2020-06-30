@@ -1,17 +1,16 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using System.IO;
-using System.Reflection;
-using System.Globalization;
-using System.Runtime.Serialization;
 
 namespace IoTHubReader.Shared
 {
@@ -31,17 +30,57 @@ namespace IoTHubReader.Shared
 			return ListAsync(CancellationToken.None);
 		}
 
-		public Task<DeviceTemplateCollection> ListAsync(CancellationToken cancellationToken)
+		public async Task<DeviceTemplateCollection> ListAsync(CancellationToken cancellationToken)
 		{
-			return Task.FromResult(new DeviceTemplateCollection());
+			var urlBuilder_ = new StringBuilder();
+			urlBuilder_.Append(BaseUrl != null ? BaseUrl.TrimEnd('/') : "").Append("/deviceTemplates");
+
+			var client_ = _httpClient;
+			using (var request_ = new HttpRequestMessage()) {
+				request_.Method = new HttpMethod("GET");
+				request_.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+				PrepareRequest(client_, request_, urlBuilder_);
+				var url_ = urlBuilder_.ToString();
+				request_.RequestUri = new Uri(url_, UriKind.RelativeOrAbsolute);
+				PrepareRequest(client_, request_, url_);
+
+				var response_ = await client_.SendAsync(request_, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+				try {
+					var headers_ = Enumerable.ToDictionary(response_.Headers, h_ => h_.Key, h_ => h_.Value);
+					if (response_.Content != null && response_.Content.Headers != null) {
+						foreach (var item_ in response_.Content.Headers)
+							headers_[item_.Key] = item_.Value;
+					}
+
+					ProcessResponse(client_, response_);
+
+					var status_ = ((int)response_.StatusCode).ToString();
+					if (status_ == "200") {
+						var objectResponse_ = await ReadObjectResponseAsync<DeviceTemplateCollection>(response_, headers_).ConfigureAwait(false);
+						return objectResponse_.Object;
+					}
+					else
+					if (status_ != "200" && status_ != "204") {
+						var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+						throw new ApiException("The HTTP status code of the response was not expected (" + (int)response_.StatusCode + ").", (int)response_.StatusCode, responseData_, headers_, null);
+					}
+
+					return default(DeviceTemplateCollection);
+				}
+				finally {
+					if (response_ != null)
+						response_.Dispose();
+				}
+			}
 		}
 
-		public Task<DTCapabilityModel> SetAsync(DTCapabilityModel body, string device_template_id)
+		public Task<DeviceTemplate> SetAsync(DeviceTemplate body, string device_template_id)
 		{
 			return SetAsync(body, device_template_id, CancellationToken.None);
 		}
 
-		public async Task<DTCapabilityModel> SetAsync(DTCapabilityModel body, string device_template_id, CancellationToken cancellationToken)
+		public async Task<DeviceTemplate> SetAsync(DeviceTemplate body, string device_template_id, CancellationToken cancellationToken)
 		{
 			if (device_template_id == null)
 				throw new ArgumentNullException("device_template_id");
@@ -51,49 +90,45 @@ namespace IoTHubReader.Shared
 			urlBuilder_.Replace("{device_template_id}", Uri.EscapeDataString(ConvertToString(device_template_id, CultureInfo.InvariantCulture)));
 
 			var client_ = _httpClient;
-			try {
-				using (var request_ = new HttpRequestMessage()) {
-					var content_ = new StringContent(JsonSerializer.Serialize(body));
-					content_.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-					request_.Content = content_;
-					request_.Method = new HttpMethod("PUT");
-					request_.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+			using (var request_ = new HttpRequestMessage()) {
+				var content_ = new StringContent(JsonSerializer.Serialize(body, new JsonSerializerOptions { IgnoreNullValues = true }));
+				content_.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
+				request_.Content = content_;
+				request_.Method = new HttpMethod("PUT");
+				request_.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
-					PrepareRequest(client_, request_, urlBuilder_);
-					var url_ = urlBuilder_.ToString();
-					request_.RequestUri = new Uri(url_, UriKind.RelativeOrAbsolute);
-					PrepareRequest(client_, request_, url_);
+				PrepareRequest(client_, request_, urlBuilder_);
+				var url_ = urlBuilder_.ToString();
+				request_.RequestUri = new Uri(url_, UriKind.RelativeOrAbsolute);
+				PrepareRequest(client_, request_, url_);
 
-					var response_ = await client_.SendAsync(request_, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-					try {
-						var headers_ = Enumerable.ToDictionary(response_.Headers, h_ => h_.Key, h_ => h_.Value);
-						if (response_.Content != null && response_.Content.Headers != null) {
-							foreach (var item_ in response_.Content.Headers)
-								headers_[item_.Key] = item_.Value;
-						}
-
-						ProcessResponse(client_, response_);
-
-						var status_ = ((int)response_.StatusCode).ToString();
-						if (status_ == "200") {
-							var objectResponse_ = await ReadObjectResponseAsync<DTCapabilityModel>(response_, headers_).ConfigureAwait(false);
-							return objectResponse_.Object;
-						}
-						else
-						if (status_ != "200" && status_ != "204") {
-							var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
-							throw new ApiException("The HTTP status code of the response was not expected (" + (int)response_.StatusCode + ").", (int)response_.StatusCode, responseData_, headers_, null);
-						}
-
-						return default(DTCapabilityModel);
+				var response_ = await client_.SendAsync(request_, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+				try {
+					var headers_ = Enumerable.ToDictionary(response_.Headers, h_ => h_.Key, h_ => h_.Value);
+					if (response_.Content != null && response_.Content.Headers != null) {
+						foreach (var item_ in response_.Content.Headers)
+							headers_[item_.Key] = item_.Value;
 					}
-					finally {
-						if (response_ != null)
-							response_.Dispose();
+
+					ProcessResponse(client_, response_);
+
+					var status_ = ((int)response_.StatusCode).ToString();
+					if (status_ == "200") {
+						var objectResponse_ = await ReadObjectResponseAsync<DeviceTemplate>(response_, headers_).ConfigureAwait(false);
+						return objectResponse_.Object;
 					}
+					else
+					if (status_ != "200" && status_ != "204") {
+						var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+						throw new ApiException("The HTTP status code of the response was not expected (" + (int)response_.StatusCode + ").", (int)response_.StatusCode, responseData_, headers_, null);
+					}
+
+					return default(DeviceTemplate);
 				}
-			}
-			finally {
+				finally {
+					if (response_ != null)
+						response_.Dispose();
+				}
 			}
 		}
 
@@ -125,25 +160,21 @@ namespace IoTHubReader.Shared
 			if (ReadResponseAsString) {
 				var responseText = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 				try {
-					var typedBody = Newtonsoft.Json.JsonConvert.DeserializeObject<T>(responseText);
+					var typedBody = JsonSerializer.Deserialize<T>(responseText);
 					return new ObjectResponseResult<T>(typedBody, responseText);
 				}
-				catch (Newtonsoft.Json.JsonException exception) {
+				catch (JsonException exception) {
 					var message = "Could not deserialize the response body string as " + typeof(T).FullName + ".";
 					throw new ApiException(message, (int)response.StatusCode, responseText, headers, exception);
 				}
 			}
 			else {
+				var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 				try {
-					using (var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-					using (var streamReader = new StreamReader(responseStream))
-					using (var jsonTextReader = new Newtonsoft.Json.JsonTextReader(streamReader)) {
-						var serializer = Newtonsoft.Json.JsonSerializer.Create();
-						var typedBody = serializer.Deserialize<T>(jsonTextReader);
-						return new ObjectResponseResult<T>(typedBody, string.Empty);
-					}
+					var typedBody = await JsonSerializer.DeserializeAsync<T>(responseStream);
+					return new ObjectResponseResult<T>(typedBody, string.Empty);
 				}
-				catch (Newtonsoft.Json.JsonException exception) {
+				catch (JsonException exception) {
 					var message = "Could not deserialize the response body stream as " + typeof(T).FullName + ".";
 					throw new ApiException(message, (int)response.StatusCode, string.Empty, headers, exception);
 				}
@@ -182,7 +213,53 @@ namespace IoTHubReader.Shared
 
 	public class DeviceTemplateCollection
 	{
-		public ICollection<DTCapabilityModel> Value { get; set; } = new Collection<DTCapabilityModel>();
+		[JsonPropertyName("value")]
+		public List<DeviceTemplate> Value { get; set; }
+
+		[JsonPropertyName("nextLink")]
+		public string NextLink { get; set; }
+	}
+
+	public partial class DeviceTemplate
+	{
+		[JsonPropertyName("id")]
+		public string Id { get; set; }
+
+		[JsonPropertyName("etag")]
+		public string Etag { get; set; }
+
+		[JsonPropertyName("types")]
+		public List<string> Types { get; set; }
+
+		[JsonPropertyName("displayName")]
+		public string DisplayName { get; set; }
+
+		[JsonPropertyName("description")]
+		public string Description { get; set; }
+
+		[JsonPropertyName("capabilityModel")]
+		public DTCapabilityModel CapabilityModel { get; set; }
+
+		[JsonPropertyName("solutionModel")]
+		public SolutionModel SolutionModel { get; set; }
+	}
+
+	public partial class SolutionModel
+	{
+		[JsonPropertyName("@id")]
+		public string Id { get; set; }
+
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
+
+		[JsonPropertyName("cloudProperties")]
+		public List<Dictionary<string, object>> CloudProperties { get; set; }
+
+		[JsonPropertyName("initialValues")]
+		public List<Dictionary<string, object>> InitialValues { get; set; }
+
+		[JsonPropertyName("overrides")]
+		public List<Dictionary<string, object>> Overrides { get; set; }
 	}
 
 	public partial class ApiException : Exception
