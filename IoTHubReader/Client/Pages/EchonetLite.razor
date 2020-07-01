@@ -53,42 +53,46 @@
 		</BSPaginationItem>
 	</BSPagination>
 
-	@if (device != null) {
-		<input type="text" @bind="FileName" />
-		<BSButton Color="Color.Primary" @onclick="Save">Save</BSButton>
-	}
-
 	<ELDeviceView Device="@device" />
 }
 
-<h1>IoT Central</h1>
-
-<div>
-	<BSForm Model="@formsModelVal" ValidateOnInit="false">
-		<DataAnnotationsValidator />
-		<BSFormGroup style="position: relative;">
-			<BSLabel For="subdomain">アプリケーション名</BSLabel>
-			<BSInput Id="subdomain" InputType="InputType.Text" PlaceHolder="[APP_NAME].azureiotcentral.com" @bind-Value="formsModelVal.Subdomain" />
-			<BSFormFeedback For="@(() => formsModelVal.Subdomain)" IsTooltip="true" InvalidMessage="[APP_NAME].azureiotcentral.com" />
-		</BSFormGroup>
-		<BSFormGroup style="position: relative;">
-			<BSLabel For="accessToken">アクセストークン</BSLabel>
-			<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
-			<BSFormFeedback For="@(() => formsModelVal.AccessToken)" IsTooltip="true" InvalidMessage="SharedAccessSignature sr=xxxx..." />
-		</BSFormGroup>
-		<BSButton Color="Color.Primary" @onclick="OnSave">Click me</BSButton>
-	</BSForm>
+<div class="editor-box" style="position: relative; min-height: 400px;">
+	<AceEditor @ref="textEditor" OnCreate="OnCreate" OnChange="OnChange">
+	</AceEditor>
 </div>
 
-<p>Response: @currentCount</p>
+@if (device != null) {
+	<input type="text" @bind="FileName" />
+	<BSButton Color="Color.Primary" @onclick="SaveJson">Download json file</BSButton>
+
+	<h1>IoT Central</h1>
+
+	<div>
+		<BSForm Model="@formsModelVal" ValidateOnInit="false">
+			<DataAnnotationsValidator />
+			<BSFormGroup style="position: relative;">
+				<BSLabel For="subdomain">アプリケーション名</BSLabel>
+				<BSInput Id="subdomain" InputType="InputType.Text" PlaceHolder="[APP_NAME].azureiotcentral.com" @bind-Value="formsModelVal.Subdomain" />
+				<BSFormFeedback For="@(() => formsModelVal.Subdomain)" IsTooltip="true" InvalidMessage="[APP_NAME].azureiotcentral.com" />
+			</BSFormGroup>
+			<BSFormGroup style="position: relative;">
+				<BSLabel For="accessToken">アクセストークン</BSLabel>
+				<BSInput Id="accessToken" InputType="InputType.Text" PlaceHolder="SharedAccessSignature sr=xxxx..." @bind-Value="formsModelVal.AccessToken" />
+				<BSFormFeedback For="@(() => formsModelVal.AccessToken)" IsTooltip="true" InvalidMessage="SharedAccessSignature sr=xxxx..." />
+			</BSFormGroup>
+			<BSButton Color="Color.Primary" @onclick="OnSave">Upload json file</BSButton>
+		</BSForm>
+	</div>
+}
 
 @code {
-	private string currentCount = "";
+	private string json = "";
+	private AceEditor textEditor;
 	private FormsModel formsModelVal = new FormsModel();
 	private string centralDnsSuffixInPath = "azureiotcentral.com";
-	private string token_id = "blazor";
 	private int start;
 	private ELDevice device;
+	private DTCapabilityModel capabilityModel;
 	const int ViewCount = 5;
 
 	[Inject]
@@ -113,13 +117,31 @@
 		await base.OnInitializedAsync();
 	}
 
+	private Task OnCreate()
+	{
+		textEditor.setTheme("ace/theme/twilight");
+		textEditor.setShowInvisibles(true);
+		textEditor.gotoLine(0, 0);
+		var session = textEditor.getSession();
+		session.setMode("ace/mode/json");
+		session.setTabSize(2);
+		session.setUseSoftTabs(false);
+
+		textEditor.setValue("json code");
+		return Task.CompletedTask;
+	}
+
+	private Task OnChange()
+	{
+		return Task.CompletedTask;
+	}
+
 	private async Task OnSave()
 	{
 		var accessToken = formsModelVal.AccessToken;
 		var subdomain = formsModelVal.Subdomain;
 
 		if (String.IsNullOrEmpty(accessToken) || String.IsNullOrEmpty(accessToken)) {
-			currentCount = "入力して";
 			return;
 		}
 
@@ -131,21 +153,29 @@
 		var httpClient = httpClientFactory.CreateClient("IoTCentral");
 		var client = new DeviceTemplatesClient(httpClient);
 		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
-		var result = await client.ListAsync();
+
+		var id = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
+		if (String.IsNullOrEmpty(id))
+			return;
+
+		var dt = new DeviceTemplate {
+			Types = new List<string> { "DeviceModel" },
+			DisplayName = id,
+			CapabilityModel = capabilityModel
+		};
+
+		var result = await client.SetAsync(dt, id);
 		if (result == null) {
-			currentCount = "error";
 			return;
 		}
 
-		currentCount = "";
-		foreach (var deviceTemplate in result.Value) {
-			var option = new JsonSerializerOptions {
-				WriteIndented = true,
-				IgnoreNullValues = true,
-				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-			};
-			currentCount += JsonSerializer.Serialize(deviceTemplate, option);
-		}
+		var option = new JsonSerializerOptions {
+			WriteIndented = true,
+			IgnoreNullValues = true,
+			Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+		};
+		json = JsonSerializer.Serialize(result.CapabilityModel, option);
+		textEditor.setValue(json);
 	}
 
 	private int Last()
@@ -159,6 +189,25 @@
 	private void OnDeviceClick(ELDevice device)
 	{
 		this.device = device;
+		if (device == null) {
+			capabilityModel = null;
+			FileName = "EchonetLite.json";
+			return;
+		}
+
+		capabilityModel = MakeCapabilityModel(device);
+
+		var option = new JsonSerializerOptions {
+			WriteIndented = true,
+			IgnoreNullValues = true,
+			Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+		};
+		json = JsonSerializer.Serialize(capabilityModel, option);
+
+		textEditor.setValue(json);
+
+		var id = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
+		FileName = id + ".json";
 	}
 
 	private void MovePage(int offset)
@@ -180,13 +229,8 @@
 			start = count - ViewCount;
 	}
 
-	private async Task Save()
+	private async Task SaveJson()
 	{
-		if (device == null)
-			return;
-
-		var Data = MakeDeviceTemplate(device);
-
-		await BlazorFileSaver.SaveAs(FileName, Data);
+		await BlazorFileSaver.SaveAs(FileName, json);
 	}
 }

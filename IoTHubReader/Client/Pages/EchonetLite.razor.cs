@@ -43,7 +43,7 @@ namespace IoTHubReader.Client.Pages
 
 		ELDeviceDescription DeviceDescription;
 
-		public static string MakeDeviceTemplate(ELDevice device)
+		public static DTCapabilityModel MakeCapabilityModel(ELDevice device)
 		{
 			var dtifs = new List<DTInterfaceContent>();
 			var deviceName = DTLocalizableConverter.MakeDigitalTwinId(device.En);
@@ -60,11 +60,11 @@ namespace IoTHubReader.Client.Pages
 				}
 			}
 
-			var deviceTemplate = new DTCapabilityModel {
+			return new DTCapabilityModel {
 				Id = $"urn:EchonetLite:{deviceName}CM:1",
 				Type = "CapabilityModel",
 				Context = "http://azureiot.com/v1/contexts/IoTModel.json",
-				DisplayName = new Dictionary<string, string> {
+				DisplayName = new DTLocalizable {
 					{ "en", device.En },
 					{ "ja", device.Ja },
 				},
@@ -73,14 +73,14 @@ namespace IoTHubReader.Client.Pages
 						Id = $"urn:EchonetLite:{deviceName}:ver_1:1",
 						Type = "InterfaceInstance",
 						Name = deviceName,
-						DisplayName = new Dictionary<string, string> {
+						DisplayName = new DTLocalizable {
 							{ "en", "Interface" },
 							{ "ja", "インターフェイス" }
 						},
 						Schema = new DTSchema {
 							Id = $"urn:EchonetLite:{deviceName}:1",
 							Type = "Interface",
-							DisplayName = new Dictionary<string, string> {
+							DisplayName = new DTLocalizable {
 								{ "en", "Interface" },
 								{ "ja", "インターフェイス" }
 							},
@@ -89,13 +89,6 @@ namespace IoTHubReader.Client.Pages
 					}
 				}
 			};
-
-			var option = new JsonSerializerOptions {
-				WriteIndented = true,
-				IgnoreNullValues = true,
-				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-			};
-			return JsonSerializer.Serialize(deviceTemplate, option);
 		}
 
 		public static uint GetAccessValue(ELProperty property)
@@ -188,9 +181,10 @@ namespace IoTHubReader.Client.Pages
 					command.Type = "Command";
 					command.Context = "http://azureiot.com/v1/contexts/IoTModel.json";
 					command.Name = name;
-					command.DisplayName = new Dictionary<string, string>();
-					command.DisplayName["en"] = edt.StateEn;
-					command.DisplayName["ja"] = edt.StateJa;
+					command.DisplayName = new DTLocalizable {
+						{ "en", edt.StateEn },
+						{ "ja", edt.StateJa }
+					};
 
 					command.CommandType = "synchronous";
 
@@ -241,9 +235,10 @@ namespace IoTHubReader.Client.Pages
 					break;
 				}
 
-				ifcnt.DisplayName = new Dictionary<string, string>();
-				ifcnt.DisplayName["en"] = propertyNameEn;
-				ifcnt.DisplayName["ja"] = propertyNameJa;
+				ifcnt.DisplayName = new DTLocalizable {
+					{ "en", propertyNameEn },
+					{ "ja", propertyNameJa }
+				};
 
 				switch (if_type) {
 				case DTInterfaceType.Command: {
@@ -305,9 +300,10 @@ namespace IoTHubReader.Client.Pages
 
 					enumValue.EnumValue = edt.Edt;
 
-					enumValue.DisplayName = new Dictionary<string, string>();
-					enumValue.DisplayName["en"] = edt.StateEn;
-					enumValue.DisplayName["ja"] = edt.StateJa;
+					enumValue.DisplayName = new DTLocalizable {
+						{ "en", edt.StateEn },
+						{ "ja", edt.StateJa }
+					};
 				}
 				break;
 			}
@@ -420,9 +416,10 @@ namespace IoTHubReader.Client.Pages
 			var request = make_schema(dataInfo);
 			command.Schema = request;
 
-			command.DisplayName = new Dictionary<string, string>();
-			command.DisplayName["en"] = propertyNameEn;
-			command.DisplayName["ja"] = propertyNameJa;
+			command.DisplayName = new DTLocalizable {
+				{ "en", propertyNameEn },
+				{ "ja", propertyNameJa }
+			};
 
 			command.DisplayUnit = dataInfo.Unit;
 

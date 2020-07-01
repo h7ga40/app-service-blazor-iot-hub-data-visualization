@@ -6,7 +6,9 @@
 		@property.Ja
 	</h3>
 	<div>@($"Get:{property.Get}, Set:{property.Set}, Inf:{property.Inf}")</div>
-	<pre>@GetDataInfo()</pre>
+	if (ViewCode) {
+		<pre>@GetDataInfo()</pre>
+	}
 }
 
 @code{
@@ -16,6 +18,9 @@
 	ELProperty property;
 	[Parameter]
 	public ELProperty Property { get { return property; } set { SetProperty(value); } }
+
+	[Parameter]
+	public bool ViewCode { get; set; }
 
 	List<DTInterfaceContent> dtifs = new List<DTInterfaceContent>();
 

@@ -8,21 +8,11 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using IoTHubReader.Shared;
 using IoTHubReader.Client.Components;
-using System.Linq;
 
 namespace IoTHubReader.Client.Pages
 {
 	partial class DeviceTwin
 	{
-		private string GetDisplayName(Dictionary<string, string> displayName)
-		{
-			if (displayName.Count == 0)
-				return "";
-			if (displayName.ContainsKey("en"))
-				return displayName["en"];
-			return displayName.Values.First();
-		}
-
 		private string GenerateRuby(DTCapabilityModel deviceTemplate, string moduleName)
 		{
 			string rubyCode = "";

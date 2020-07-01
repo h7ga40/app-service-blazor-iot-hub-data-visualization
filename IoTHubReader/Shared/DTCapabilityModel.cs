@@ -25,10 +25,10 @@ namespace IoTHubReader.Shared
 		public StringList Type { get; set; }
 
 		[JsonPropertyName("description")]
-		public Dictionary<string, string> Description { get; set; }
+		public DTLocalizable Description { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public Dictionary<string, string> DisplayName { get; set; }
+		public DTLocalizable DisplayName { get; set; }
 
 		[JsonPropertyName("@context"), JsonConverter(typeof(DTStringListConverter))]
 		public StringList Context { get; set; }
@@ -49,10 +49,10 @@ namespace IoTHubReader.Shared
 		public string Name { get; set; }
 
 		[JsonPropertyName("description")]
-		public Dictionary<string, string> Description { get; set; }
+		public DTLocalizable Description { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public Dictionary<string, string> DisplayName { get; set; }
+		public DTLocalizable DisplayName { get; set; }
 
 		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
 		public DTSchema Schema { get; set; }
@@ -73,7 +73,7 @@ namespace IoTHubReader.Shared
 		public string Name { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public Dictionary<string, string> DisplayName { get; set; }
+		public DTLocalizable DisplayName { get; set; }
 
 		[JsonPropertyName("commandType")]
 		public string CommandType { get; set; }
@@ -109,10 +109,10 @@ namespace IoTHubReader.Shared
 		public StringList Type { get; set; }
 
 		[JsonPropertyName("description")]
-		public Dictionary<string, string> Description { get; set; }
+		public DTLocalizable Description { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public Dictionary<string, string> DisplayName { get; set; }
+		public DTLocalizable DisplayName { get; set; }
 
 		[JsonPropertyName("fields")]
 		public List<DTField> Fields { get; set; }
@@ -139,7 +139,7 @@ namespace IoTHubReader.Shared
 		public DTSchema Schema { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public Dictionary<string, string> DisplayName { get; set; }
+		public DTLocalizable DisplayName { get; set; }
 
 		[JsonPropertyName("displayUnit")]
 		public string DisplayUnit { get; set; }
@@ -169,37 +169,63 @@ namespace IoTHubReader.Shared
 		public long EnumValue { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public Dictionary<string, string> DisplayName { get; set; }
+		public DTLocalizable DisplayName { get; set; }
 	}
 
-	public class DTLocalizableConverter : JsonConverter<Dictionary<string, string>>
+	public class DTLocalizable : Dictionary<string, string>
+	{
+		public static implicit operator DTLocalizable(string value)
+		{
+			return new DTLocalizable { { "en", value } };
+		}
+	}
+
+	public class DTLocalizableConverter : JsonConverter<DTLocalizable>
 	{
 		public override bool CanConvert(Type typeToConvert)
 		{
 			if (typeToConvert == typeof(string))
 				return true;
-			if (typeToConvert == typeof(Dictionary<string, string>))
+			if (typeToConvert == typeof(DTLocalizable))
 				return true;
 			return false;
 		}
 
-		public override Dictionary<string, string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		public override DTLocalizable Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			if (reader.TokenType == JsonTokenType.String) {
-				return new Dictionary<string, string> {
+				return new DTLocalizable {
 					{ "en", reader.GetString() }
 				};
 			}
 
-			return JsonSerializer.Deserialize<Dictionary<string, string>>(ref reader, options);
+			return JsonSerializer.Deserialize<DTLocalizable>(ref reader, options);
 		}
 
-		public override void Write(Utf8JsonWriter writer, Dictionary<string, string> value, JsonSerializerOptions options)
+		public override void Write(Utf8JsonWriter writer, DTLocalizable value, JsonSerializerOptions options)
 		{
 			if (value.Count == 1 && value.ContainsKey("en"))
 				writer.WriteStringValue(value["en"]);
 			else
 				JsonSerializer.Serialize(writer, value, options);
+		}
+
+		public static string GetDisplayName(DTLocalizable localizable)
+		{
+			if (localizable.Count == 0)
+				return "";
+			if (localizable.ContainsKey("ja"))
+				return localizable["ja"];
+			return localizable.Values.First();
+		}
+
+		public static string GetCodeName(DTLocalizable localizable)
+		{
+			if (localizable == null || localizable.Count == 0)
+				return "";
+			if (localizable.ContainsKey("en"))
+				return MakeDigitalTwinId(localizable["en"]);
+			return MakeDigitalTwinId(localizable.Values.First());
 		}
 
 		public static string MakeDigitalTwinId(string id)
