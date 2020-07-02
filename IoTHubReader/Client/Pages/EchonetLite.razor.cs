@@ -425,5 +425,237 @@ namespace IoTHubReader.Client.Pages
 
 			return command;
 		}
+
+		private DTCapabilityModel ModifyForRestApi(DTCapabilityModel src)
+		{
+			DTCapabilityModel dst = new DTCapabilityModel();
+
+			dst.Id = src.Id;
+
+			if (src.Type != null) {
+				dst.Type = new StringList { OutputArray = true };
+				dst.Type.AddRange(src.Type);
+			}
+
+			if (src.Description != null) {
+				dst.Description = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.Description)
+					dst.Description.Add(kvp.Key, kvp.Value);
+			}
+
+			if (src.DisplayName != null) {
+				dst.DisplayName = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.DisplayName)
+					dst.DisplayName.Add(kvp.Key, kvp.Value);
+			}
+
+			//if (src.Context != null) {
+			//	dst.Context = new StringList { OutputArray = true };
+			//	dst.Context.AddRange(src.Context);
+			//}
+
+			if (src.Implements != null) {
+				dst.Implements = new List<DTInterfaceInstance>();
+				foreach (var implement in src.Implements) {
+					dst.Implements.Add(ModifyForRestApi(implement));
+				}
+			}
+
+			return dst;
+		}
+
+		private DTInterfaceInstance ModifyForRestApi(DTInterfaceInstance src)
+		{
+			DTInterfaceInstance dst = new DTInterfaceInstance();
+
+			dst.Id = src.Id;
+
+			if (src.Type != null) {
+				dst.Type = new StringList { OutputArray = true };
+				dst.Type.AddRange(src.Type);
+			}
+
+			dst.Name = src.Name;
+
+			if (src.Description != null) {
+				dst.Description = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.Description)
+					dst.Description.Add(kvp.Key, kvp.Value);
+			}
+
+			if (src.DisplayName != null) {
+				dst.DisplayName = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.DisplayName)
+					dst.DisplayName.Add(kvp.Key, kvp.Value);
+			}
+
+			if (src.Schema != null) {
+				dst.Schema = ModifyForRestApi(src.Schema);
+			}
+
+			return dst;
+		}
+
+		private DTSchema ModifyForRestApi(DTSchema src)
+		{
+			DTSchema dst = new DTSchema();
+
+			dst.Id = src.Id;
+
+			if (src.Type != null) {
+				dst.Type = new StringList { OutputArray = true };
+				dst.Type.AddRange(src.Type);
+			}
+
+			if (src.Description != null) {
+				dst.Description = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.Description)
+					dst.Description.Add(kvp.Key, kvp.Value);
+			}
+
+			if (src.DisplayName != null) {
+				dst.DisplayName = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.DisplayName)
+					dst.DisplayName.Add(kvp.Key, kvp.Value);
+			}
+
+			dst.ValueSchema = src.ValueSchema;
+
+			if (src.Fields != null) {
+				dst.Fields = new List<DTField>();
+				foreach (var field in src.Fields) {
+					dst.Fields.Add(ModifyForRestApi(field));
+				}
+			}
+
+			if (src.EnumValues != null) {
+				dst.EnumValues = new List<DTEnumValue>();
+				foreach (var enumValue in src.EnumValues) {
+					dst.EnumValues.Add(ModifyForRestApi(enumValue));
+				}
+			}
+
+			if (src.Contents != null) {
+				dst.Contents = new List<DTInterfaceContent>();
+				foreach (var content in src.Contents) {
+					dst.Contents.Add(ModifyForRestApi(content));
+				}
+			}
+
+			return dst;
+		}
+
+		private DTField ModifyForRestApi(DTField src)
+		{
+			DTField dst = new DTField();
+
+			dst.Name = src.Name;
+
+			if (src.Schema != null) {
+				dst.Schema = ModifyForRestApi(src.Schema);
+			}
+
+			return dst;
+		}
+
+		private DTEnumValue ModifyForRestApi(DTEnumValue src)
+		{
+			DTEnumValue dst = new DTEnumValue();
+
+			dst.Id = src.Id;
+
+			if (src.Type != null) {
+				dst.Type = new StringList { OutputArray = true };
+				dst.Type.AddRange(src.Type);
+			}
+
+			dst.Name = src.Name;
+
+			dst.EnumValue = src.EnumValue;
+
+			if (src.DisplayName != null) {
+				dst.DisplayName = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.DisplayName)
+					dst.DisplayName.Add(kvp.Key, kvp.Value);
+			}
+
+			return dst;
+		}
+
+		private DTInterfaceContent ModifyForRestApi(DTInterfaceContent src)
+		{
+			DTInterfaceContent dst = new DTInterfaceContent();
+
+			dst.Id = src.Id;
+
+			if (src.Type != null) {
+				dst.Type = new StringList { OutputArray = true };
+				dst.Type.AddRange(src.Type);
+			}
+
+			//if (src.Context != null) {
+			//	dst.Context = new StringList { OutputArray = true };
+			//	dst.Context.AddRange(src.Context);
+			//}
+
+			dst.Name = src.Name;
+
+			if (src.DisplayName != null) {
+				dst.DisplayName = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.DisplayName)
+					dst.DisplayName.Add(kvp.Key, kvp.Value);
+			}
+
+			dst.CommandType = src.CommandType;
+
+			if (src.Schema != null) {
+				dst.Schema = ModifyForRestApi(src.Schema);
+			}
+
+			dst.Writable = src.Writable;
+
+			dst.Durable = src.Durable;
+
+			if (src.Request != null) {
+				dst.Request = ModifyForRestApi(src.Request);
+			}
+
+			if (src.Response != null) {
+				dst.Response = ModifyForRestApi(src.Response);
+			}
+
+			dst.Unit = src.Unit;
+
+			dst.DisplayUnit = src.DisplayUnit;
+
+			return dst;
+		}
+
+		private DTCommandPayload ModifyForRestApi(DTCommandPayload src)
+		{
+			DTCommandPayload dst = new DTCommandPayload();
+
+			dst.Id = src.Id;
+
+			dst.Name = src.Name;
+
+			if (src.Schema != null) {
+				dst.Schema = ModifyForRestApi(src.Schema);
+
+				// CommandPayloadはREST APIでは@typeが必要
+				dst.Type = new StringList { OutputArray = true };
+				dst.Type.Add("SchemaField");
+			}
+
+			if (src.DisplayName != null) {
+				dst.DisplayName = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.DisplayName)
+					dst.DisplayName.Add(kvp.Key, kvp.Value);
+			}
+
+			dst.DisplayUnit = src.DisplayUnit;
+
+			return dst;
+		}
 	}
 }

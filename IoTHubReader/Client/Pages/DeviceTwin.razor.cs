@@ -100,7 +100,7 @@ end");
 
 			// attr_reader
 			foreach (var t in cls.Telemetries) {
-				stream.WriteLine("attr_reader :" + t.Name);
+				stream.WriteLine("attr_reader :" + t.Name.FirstCharToLower());
 			}
 			if (cls.Telemetries.Count > 0)
 				stream.WriteLine();
@@ -108,7 +108,7 @@ end");
 			stream.WriteLine("def initialize");
 			stream.Indent++;
 			foreach (var p in cls.Properties) {
-				stream.WriteLine("@" + p.Name + " = rand()");
+				stream.WriteLine("@" + p.Name.FirstCharToLower() + " = rand()");
 			}
 			stream.Indent--;
 			stream.WriteLine("end");
@@ -127,7 +127,7 @@ end");
 			foreach (var s in cls.States) {
 				stream.WriteLine("def get_" + s.Name.ToLowerCaseUnderbar());
 				stream.Indent++;
-				stream.WriteLine("@" + s.Name);
+				stream.WriteLine("@" + s.Name.FirstCharToLower());
 				stream.Indent--;
 				stream.WriteLine("end");
 				stream.WriteLine();
@@ -136,7 +136,7 @@ end");
 			foreach (var p in cls.Properties) {
 				stream.WriteLine("def set_" + p.Name.ToLowerCaseUnderbar() + "(value)");
 				stream.Indent++;
-				stream.WriteLine("@" + p.Name + " = value");
+				stream.WriteLine("@" + p.Name.FirstCharToLower() + " = value");
 				stream.WriteLine("puts \"set " + p.Name + " \" + value");
 				stream.Indent--;
 				stream.WriteLine("end");
@@ -178,7 +178,7 @@ end");
 					stream.WriteLine("if value != nil");
 					stream.Indent++;
 					stream.WriteLine("set_" + p.Name.ToLowerCaseUnderbar() + "(value)");
-					stream.WriteLine("desired[key] = {value: @" + p.Name + ", status: \"success\"}");
+					stream.WriteLine("desired[key] = {value: @" + p.Name.FirstCharToLower() + ", status: \"success\"}");
 					stream.Indent--;
 					stream.WriteLine("else");
 					stream.Indent++;
@@ -213,7 +213,7 @@ end");
 			stream.Indent++;
 
 			foreach (var t in cls.Telemetries) {
-				stream.WriteLine(t.Name + ": @" + t.Name + ",");
+				stream.WriteLine(t.Name + ": @" + t.Name.FirstCharToLower() + ",");
 			}
 
 			stream.Indent--;
@@ -235,7 +235,7 @@ end");
 			stream.Indent++;
 
 			foreach (var t in cls.Telemetries) {
-				stream.WriteLine("@" + t.Name + " = rand()");
+				stream.WriteLine("@" + t.Name.FirstCharToLower() + " = rand()");
 			}
 
 			stream.Indent--;
@@ -268,6 +268,11 @@ end");
 				}
 			}
 			return new string(result.ToArray()).Trim('_');
+		}
+
+		public static string FirstCharToLower(this string value)
+		{
+			return value.Substring(0, 1).ToLower() + value.Substring(1);
 		}
 	}
 }

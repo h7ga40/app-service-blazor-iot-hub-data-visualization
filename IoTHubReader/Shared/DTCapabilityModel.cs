@@ -132,6 +132,10 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@id")]
 		public string Id { get; set; }
 
+		// REAST API用
+		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
+		public StringList Type { get; set; }
+
 		[JsonPropertyName("name")]
 		public string Name { get; set; }
 
@@ -174,6 +178,8 @@ namespace IoTHubReader.Shared
 
 	public class DTLocalizable : Dictionary<string, string>
 	{
+		public bool OutputString { get; set; }
+
 		public static implicit operator DTLocalizable(string value)
 		{
 			return new DTLocalizable { { "en", value } };
@@ -204,18 +210,24 @@ namespace IoTHubReader.Shared
 
 		public override void Write(Utf8JsonWriter writer, DTLocalizable value, JsonSerializerOptions options)
 		{
-			if (value.Count == 1 && value.ContainsKey("en"))
+			if (value.OutputString) {
+				if (value.Count == 0)
+					writer.WriteNullValue();
+				else
+					writer.WriteStringValue(value.First().Value);
+			}
+			else if (value.Count == 1 && value.ContainsKey("en"))
 				writer.WriteStringValue(value["en"]);
 			else
 				JsonSerializer.Serialize(writer, value, options);
 		}
 
-		public static string GetDisplayName(DTLocalizable localizable)
+		public static string GetDisplayName(DTLocalizable localizable, string location = "en")
 		{
 			if (localizable.Count == 0)
 				return "";
-			if (localizable.ContainsKey("ja"))
-				return localizable["ja"];
+			if (localizable.ContainsKey(location))
+				return localizable[location];
 			return localizable.Values.First();
 		}
 
@@ -224,11 +236,16 @@ namespace IoTHubReader.Shared
 			if (localizable == null || localizable.Count == 0)
 				return "";
 			if (localizable.ContainsKey("en"))
-				return MakeDigitalTwinId(localizable["en"]);
-			return MakeDigitalTwinId(localizable.Values.First());
+				return ToLowerUnderbar(localizable["en"]);
+			return ToLowerUnderbar(localizable.Values.First());
 		}
 
 		public static string MakeDigitalTwinId(string id)
+		{
+			return ToPascalCase(ToLowerUnderbar(id));
+		}
+
+		private static string ToLowerUnderbar(string id)
 		{
 			int i = 0, len = id.Length;
 			char[] temp = new char[len];
@@ -244,7 +261,7 @@ namespace IoTHubReader.Shared
 				}
 			}
 
-			return ToPascalCase(new string(temp));
+			return new string(temp);
 		}
 
 		public static string ToPascalCase(string str)
@@ -262,12 +279,14 @@ namespace IoTHubReader.Shared
 			}
 			result += str.Substring(index, str.Length - index);
 
-			return result;
+			return result.Substring(0, 1).ToUpper() + result.Substring(1);
 		}
 	}
 
 	public class StringList : List<string>
 	{
+		public bool OutputArray { get; set; }
+
 		public static implicit operator StringList(string value)
 		{
 			return new StringList { value };
@@ -298,7 +317,7 @@ namespace IoTHubReader.Shared
 
 		public override void Write(Utf8JsonWriter writer, StringList value, JsonSerializerOptions options)
 		{
-			if (value.Count == 1)
+			if (!value.OutputArray && value.Count == 1)
 				writer.WriteStringValue(value[0]);
 			else
 				JsonSerializer.Serialize(writer, value, options);

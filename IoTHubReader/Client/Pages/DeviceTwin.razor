@@ -46,7 +46,7 @@
 					break;
 				i++;
 				<BSTab @ref="tab.Tab">
-					<BSTabLabel>@(DTLocalizableConverter.GetDisplayName(tab.Template.DisplayName))</BSTabLabel>
+					<BSTabLabel>@(DTLocalizableConverter.GetDisplayName(tab.Template.DisplayName, "ja"))</BSTabLabel>
 					<BSTabContent>
 					</BSTabContent>
 				</BSTab>
@@ -147,7 +147,7 @@
 
 	private void Select(DTCapabilityModel capabilityModel)
 	{
-		var moduleName = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
+		var moduleName = DTLocalizableConverter.ToPascalCase(DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName));
 		FileName = moduleName + ".rb";
 		ruby = GenerateRuby(capabilityModel, moduleName);
 		textEditor.setValue(ruby);

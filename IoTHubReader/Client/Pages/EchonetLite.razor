@@ -154,14 +154,15 @@
 		var client = new DeviceTemplatesClient(httpClient);
 		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
 
+		var name = DTLocalizableConverter.GetDisplayName(capabilityModel.DisplayName);
 		var id = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
 		if (String.IsNullOrEmpty(id))
 			return;
 
 		var dt = new DeviceTemplate {
 			Types = new List<string> { "DeviceModel" },
-			DisplayName = id,
-			CapabilityModel = capabilityModel
+			DisplayName = name,
+			CapabilityModel = ModifyForRestApi(capabilityModel)
 		};
 
 		var result = await client.SetAsync(dt, id);
@@ -207,7 +208,7 @@
 		textEditor.setValue(json);
 
 		var id = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
-		FileName = id + ".json";
+		FileName = DTLocalizableConverter.ToPascalCase(id) + ".json";
 	}
 
 	private void MovePage(int offset)
