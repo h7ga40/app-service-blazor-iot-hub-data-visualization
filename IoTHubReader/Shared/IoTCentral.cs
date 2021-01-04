@@ -238,7 +238,7 @@ namespace IoTHubReader.Shared
 		public string Description { get; set; }
 
 		[JsonPropertyName("capabilityModel")]
-		public DTCapabilityModel CapabilityModel { get; set; }
+		public DTInterface CapabilityModel { get; set; }
 
 		[JsonPropertyName("solutionModel")]
 		public SolutionModel SolutionModel { get; set; }

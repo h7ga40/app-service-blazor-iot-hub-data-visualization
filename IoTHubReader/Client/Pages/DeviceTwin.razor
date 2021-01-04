@@ -46,7 +46,7 @@
 					break;
 				i++;
 				<BSTab @ref="tab.Tab">
-					<BSTabLabel>@(DTLocalizableConverter.GetDisplayName(tab.Template.DisplayName, "ja"))</BSTabLabel>
+					<BSTabLabel>@(DTLocalizableConverter.GetDisplayName(tab.DeviceTemplate.DisplayName, "ja"))</BSTabLabel>
 					<BSTabContent>
 					</BSTabContent>
 				</BSTab>
@@ -73,7 +73,7 @@
 
 	class TabInfo
 	{
-		public DTCapabilityModel Template;
+		public DTInterface DeviceTemplate;
 		public BSTab Tab;
 	}
 
@@ -120,7 +120,7 @@
 		int i = 0;
 		foreach (var dt in result.Value) {
 			TabInfo tab = (i < tabs.Count) ? tabs[i] : new TabInfo();
-			tab.Template = dt.CapabilityModel;
+			tab.DeviceTemplate = dt.CapabilityModel;
 			tabs.Add(tab);
 			i++;
 		}
@@ -131,25 +131,33 @@
 	{
 		int i = queryCount;
 		foreach (var file in await fileReaderService.CreateReference(inputTypeFileElement).EnumerateFilesAsync()) {
-			DTCapabilityModel capabilityModel;
+			List<DTInterface> deviceTemplates;
 			using (var stream = await file.OpenReadAsync()) {
-				capabilityModel = await JsonSerializer.DeserializeAsync<DTCapabilityModel>(stream);
+				deviceTemplates = await JsonSerializer.DeserializeAsync<List<DTInterface>>(stream);
 			}
-			if (capabilityModel != null) {
+			if (deviceTemplates != null) {
+				foreach (var capabilityModel in deviceTemplates) {
 				TabInfo tab = (i < tabs.Count) ? tabs[i] : new TabInfo();
-				tab.Template = capabilityModel;
+					tab.DeviceTemplate = capabilityModel;
 				tabs.Add(tab);
 				i++;
 			}
 		}
+		}
 		fileCount = i - queryCount;
 	}
 
-	private void Select(DTCapabilityModel capabilityModel)
+	private void Select(DTInterface deviceTemplate)
 	{
-		var moduleName = DTLocalizableConverter.ToPascalCase(DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName));
+		var moduleName = DTLocalizableConverter.ToPascalCase(DTLocalizableConverter.GetCodeName(deviceTemplate.DisplayName));
 		FileName = moduleName + ".rb";
-		ruby = GenerateRuby(capabilityModel, moduleName);
+		try {
+			ruby = GenerateRuby(deviceTemplate, moduleName);
+		}
+		catch(Exception e) {
+			ruby = "#" + e.Message;
+			Console.WriteLine(e.ToString());
+		}
 		textEditor.setValue(ruby);
 	}
 
@@ -180,6 +188,6 @@
 	private void OnShown(BSTabEvent ev)
 	{
 		var tab = tabs.FirstOrDefault((t) => t.Tab == ev.Activated);
-		Select(tab.Template);
+		Select(tab.DeviceTemplate);
 	}
 }

@@ -13,24 +13,22 @@ namespace IoTHubReader.Client.Pages
 {
 	partial class DeviceTwin
 	{
-		private string GenerateRuby(DTCapabilityModel deviceTemplate, string moduleName)
+		private string GenerateRuby(DTInterface deviceTemplate, string moduleName)
 		{
 			string rubyCode = "";
 
-			foreach (var implement in deviceTemplate.Implements) {
-				using (var writer = new CodeWriter()) {
-					OutputRuby(implement.Schema, moduleName, implement.Name, writer);
-					rubyCode += writer.ToString();
-				}
+			using (var writer = new CodeWriter()) {
+				OutputRuby(deviceTemplate, moduleName, deviceTemplate.Type[0], writer);
+				rubyCode += writer.ToString();
 			}
 
 			return rubyCode;
 		}
 
-		private static void OutputRuby(DTSchema ifInstance, string moduleName, string className, CodeWriter stream)
+		private static void OutputRuby(DTInterface deviceTemplate, string moduleName, string className, CodeWriter stream)
 		{
 			var cls = new RBClass { Name = className };
-			foreach (var content in ifInstance.Contents) {
+			foreach (var content in deviceTemplate.Contents) {
 				if (content.Type.Contains("Telemetry")) {
 					if (content.Type.Contains("SemanticType/State")) {
 						cls.States.Add(content);

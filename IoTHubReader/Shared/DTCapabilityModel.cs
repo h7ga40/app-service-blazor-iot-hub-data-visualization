@@ -14,9 +14,11 @@ namespace IoTHubReader.Shared
 		Telemetry,
 		Property,
 		Command,
+		Relationship,
+		Component
 	}
 
-	public class DTCapabilityModel
+	public class DTInterface
 	{
 		[JsonPropertyName("@id")]
 		public string Id { get; set; }
@@ -33,29 +35,8 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@context"), JsonConverter(typeof(DTStringListConverter))]
 		public StringList Context { get; set; }
 
-		[JsonPropertyName("implements")]
-		public List<DTInterfaceInstance> Implements { get; set; }
-	}
-
-	public class DTInterfaceInstance
-	{
-		[JsonPropertyName("@id")]
-		public string Id { get; set; }
-
-		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
-		public StringList Type { get; set; }
-
-		[JsonPropertyName("name")]
-		public string Name { get; set; }
-
-		[JsonPropertyName("description")]
-		public DTLocalizable Description { get; set; }
-
-		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
-		public DTLocalizable DisplayName { get; set; }
-
-		[JsonPropertyName("schema"), JsonConverter(typeof(DTSchemaConverter))]
-		public DTSchema Schema { get; set; }
+		[JsonPropertyName("contents")]
+		public List<DTInterfaceContent> Contents { get; set; }
 	}
 
 	public class DTInterfaceContent
@@ -66,11 +47,11 @@ namespace IoTHubReader.Shared
 		[JsonPropertyName("@type"), JsonConverter(typeof(DTStringListConverter))]
 		public StringList Type { get; set; }
 
-		[JsonPropertyName("@context"), JsonConverter(typeof(DTStringListConverter))]
-		public StringList Context { get; set; }
-
 		[JsonPropertyName("name")]
 		public string Name { get; set; }
+
+		[JsonPropertyName("description")]
+		public DTLocalizable Description { get; set; }
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public DTLocalizable DisplayName { get; set; }
@@ -95,9 +76,6 @@ namespace IoTHubReader.Shared
 
 		[JsonPropertyName("unit")]
 		public string Unit { get; set; }
-
-		[JsonPropertyName("displayUnit")]
-		public string DisplayUnit { get; set; }
 	}
 
 	public class DTSchema
@@ -144,9 +122,6 @@ namespace IoTHubReader.Shared
 
 		[JsonPropertyName("displayName"), JsonConverter(typeof(DTLocalizableConverter))]
 		public DTLocalizable DisplayName { get; set; }
-
-		[JsonPropertyName("displayUnit")]
-		public string DisplayUnit { get; set; }
 	}
 
 	public class DTField
@@ -354,7 +329,7 @@ namespace IoTHubReader.Shared
 				switch (type) {
 				case "boolean":
 				case "date":
-				case "datetime":
+				case "dateTime":
 				case "double":
 				case "duration":
 				case "float":

@@ -92,7 +92,7 @@
 	private string centralDnsSuffixInPath = "azureiotcentral.com";
 	private int start;
 	private ELDevice device;
-	private DTCapabilityModel capabilityModel;
+	private DTInterface deviceTemplate;
 	const int ViewCount = 5;
 
 	[Inject]
@@ -154,15 +154,15 @@
 		var client = new DeviceTemplatesClient(httpClient);
 		client.BaseUrl = $"https://{subdomain}.{centralDnsSuffixInPath}/api/preview";
 
-		var name = DTLocalizableConverter.GetDisplayName(capabilityModel.DisplayName);
-		var id = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
+		var name = DTLocalizableConverter.GetDisplayName(deviceTemplate.DisplayName);
+		var id = DTLocalizableConverter.GetCodeName(deviceTemplate.DisplayName);
 		if (String.IsNullOrEmpty(id))
 			return;
 
 		var dt = new DeviceTemplate {
 			Types = new List<string> { "DeviceModel" },
 			DisplayName = name,
-			CapabilityModel = ModifyForRestApi(capabilityModel)
+			CapabilityModel = ModifyForRestApi(deviceTemplate)
 		};
 
 		var result = await client.SetAsync(dt, id);
@@ -175,7 +175,7 @@
 			IgnoreNullValues = true,
 			Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
 		};
-		json = JsonSerializer.Serialize(result.CapabilityModel, option);
+		json = JsonSerializer.Serialize(result.CapabilityModel.Contents, option);
 		textEditor.setValue(json);
 	}
 
@@ -191,23 +191,23 @@
 	{
 		this.device = device;
 		if (device == null) {
-			capabilityModel = null;
+			deviceTemplate = null;
 			FileName = "EchonetLite.json";
 			return;
 		}
 
-		capabilityModel = MakeCapabilityModel(device);
+		deviceTemplate = MakeInterface(device);
 
 		var option = new JsonSerializerOptions {
 			WriteIndented = true,
 			IgnoreNullValues = true,
 			Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
 		};
-		json = JsonSerializer.Serialize(capabilityModel, option);
+		json = JsonSerializer.Serialize(new List<DTInterface> { deviceTemplate }, option);
 
 		textEditor.setValue(json);
 
-		var id = DTLocalizableConverter.GetCodeName(capabilityModel.DisplayName);
+		var id = DTLocalizableConverter.GetCodeName(deviceTemplate.DisplayName);
 		FileName = DTLocalizableConverter.ToPascalCase(id) + ".json";
 	}
 

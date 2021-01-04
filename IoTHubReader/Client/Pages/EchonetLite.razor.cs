@@ -43,7 +43,7 @@ namespace IoTHubReader.Client.Pages
 
 		ELDeviceDescription DeviceDescription;
 
-		public static DTCapabilityModel MakeCapabilityModel(ELDevice device)
+		public static DTInterface MakeInterface(ELDevice device)
 		{
 			var dtifs = new List<DTInterfaceContent>();
 			var deviceName = DTLocalizableConverter.MakeDigitalTwinId(device.En);
@@ -60,34 +60,15 @@ namespace IoTHubReader.Client.Pages
 				}
 			}
 
-			return new DTCapabilityModel {
-				Id = $"urn:EchonetLite:{deviceName}CM:1",
-				Type = "CapabilityModel",
-				Context = "http://azureiot.com/v1/contexts/IoTModel.json",
+			return new DTInterface {
+				Id = $"dtmi:EchonetLite:{deviceName};1",
+				Type = "Interface",
+				Context = "dtmi:dtdl:context;2",
 				DisplayName = new DTLocalizable {
 					{ "en", device.En },
 					{ "ja", device.Ja },
 				},
-				Implements = new List<DTInterfaceInstance> {
-					new DTInterfaceInstance {
-						Id = $"urn:EchonetLite:{deviceName}:ver_1:1",
-						Type = "InterfaceInstance",
-						Name = deviceName,
-						DisplayName = new DTLocalizable {
-							{ "en", "Interface" },
-							{ "ja", "インターフェイス" }
-						},
-						Schema = new DTSchema {
-							Id = $"urn:EchonetLite:{deviceName}:1",
-							Type = "Interface",
-							DisplayName = new DTLocalizable {
-								{ "en", "Interface" },
-								{ "ja", "インターフェイス" }
-							},
-							Contents = dtifs
-						}
-					}
-				}
+				Contents = dtifs
 			};
 		}
 
@@ -179,7 +160,6 @@ namespace IoTHubReader.Client.Pages
 					}
 
 					command.Type = "Command";
-					command.Context = "http://azureiot.com/v1/contexts/IoTModel.json";
 					command.Name = name;
 					command.DisplayName = new DTLocalizable {
 						{ "en", edt.StateEn },
@@ -198,15 +178,15 @@ namespace IoTHubReader.Client.Pages
 
 				if (index == 0) {
 					if (String.IsNullOrEmpty(deviceName))
-						ifcnt.Id = $"urn:EchonetLite:{name}:1";
+						ifcnt.Id = $"dtmi:EchonetLite:{name};1";
 					else
-						ifcnt.Id = $"urn:EchonetLite:{deviceName}:{name}:1";
+						ifcnt.Id = $"dtmi:EchonetLite:{deviceName}:{name};1";
 				}
 				else {
 					if (String.IsNullOrEmpty(deviceName))
-						ifcnt.Id = $"urn:EchonetLite:{name}{index + 1}:1";
+						ifcnt.Id = $"dtmi:EchonetLite:{name}{index + 1};1";
 					else
-						ifcnt.Id = $"urn:EchonetLite:{deviceName}:{name}{index + 1}:1";
+						ifcnt.Id = $"dtmi:EchonetLite:{deviceName}:{name}{index + 1};1";
 				}
 
 				switch (if_type) {
@@ -224,7 +204,6 @@ namespace IoTHubReader.Client.Pages
 					return;
 				}
 
-				ifcnt.Context = "http://azureiot.com/v1/contexts/IoTModel.json";
 				ifcnt.Name = name;
 
 				switch (if_type) {
@@ -243,21 +222,15 @@ namespace IoTHubReader.Client.Pages
 				switch (if_type) {
 				case DTInterfaceType.Command: {
 					ifcnt.CommandType = "synchronous";
-					var request = make_command_payload(propertyNameJa, propertyNameEn, dataInfo);
+					var request = make_command_payload(propertyNameJa, propertyNameEn, dataInfo, true);
 					ifcnt.Request = request;
-					var response = make_command_payload(propertyNameJa, propertyNameEn, dataInfo);
+					var response = make_command_payload(propertyNameJa, propertyNameEn, dataInfo, false);
 					ifcnt.Response = response;
 					break;
 				}
 				case DTInterfaceType.Telemetry:
-					if (dataInfo.Unit != null) {
-						ifcnt.DisplayUnit = dataInfo.Unit;
-					}
 					break;
 				case DTInterfaceType.Property:
-					if (dataInfo.Unit != null) {
-						ifcnt.DisplayUnit = dataInfo.Unit;
-					}
 					ifcnt.Writable = writable;
 					break;
 				default:
@@ -322,7 +295,7 @@ namespace IoTHubReader.Client.Pages
 				break;
 			}
 			case ELDataType.DateTime: {
-				schema.Type = "datetime";
+				schema.Type = "dateTime";
 				break;
 			}
 			case ELDataType.Time: {
@@ -330,7 +303,7 @@ namespace IoTHubReader.Client.Pages
 				break;
 			}
 			case ELDataType.Raw: {
-				schema.Type = "String";
+				schema.Type = "string";
 				break;
 			}
 			case ELDataType.Array: {
@@ -401,34 +374,32 @@ namespace IoTHubReader.Client.Pages
 			return schema;
 		}
 
-		static DTCommandPayload make_command_payload(string propertyNameJa, string propertyNameEn, ELDefinition dataInfo)
+		static DTCommandPayload make_command_payload(string propertyNameJa, string propertyNameEn, ELDefinition dataInfo, bool request)
 		{
 			var command = new DTCommandPayload();
 
 			var name = DTLocalizableConverter.MakeDigitalTwinId(propertyNameEn);
 
-			var temp = $"urn:EchonetLite:{name}:1";
+			var temp = $"dtmi:EchonetLite:{name}:{(request ? "Request" : "Response")};1";
 
 			command.Id = temp;
 
 			command.Name = name;
 
-			var request = make_schema(dataInfo);
-			command.Schema = request;
+			var schema = make_schema(dataInfo);
+			command.Schema = schema;
 
 			command.DisplayName = new DTLocalizable {
 				{ "en", propertyNameEn },
 				{ "ja", propertyNameJa }
 			};
 
-			command.DisplayUnit = dataInfo.Unit;
-
 			return command;
 		}
 
-		private DTCapabilityModel ModifyForRestApi(DTCapabilityModel src)
+		private DTInterface ModifyForRestApi(DTInterface src)
 		{
-			DTCapabilityModel dst = new DTCapabilityModel();
+			DTInterface dst = new DTInterface();
 
 			dst.Id = src.Id;
 
@@ -454,43 +425,11 @@ namespace IoTHubReader.Client.Pages
 			//	dst.Context.AddRange(src.Context);
 			//}
 
-			if (src.Implements != null) {
-				dst.Implements = new List<DTInterfaceInstance>();
-				foreach (var implement in src.Implements) {
-					dst.Implements.Add(ModifyForRestApi(implement));
+			if (src.Contents != null) {
+				dst.Contents = new List<DTInterfaceContent>();
+				foreach (var implement in src.Contents) {
+					dst.Contents.Add(ModifyForRestApi(implement));
 				}
-			}
-
-			return dst;
-		}
-
-		private DTInterfaceInstance ModifyForRestApi(DTInterfaceInstance src)
-		{
-			DTInterfaceInstance dst = new DTInterfaceInstance();
-
-			dst.Id = src.Id;
-
-			if (src.Type != null) {
-				dst.Type = new StringList { OutputArray = true };
-				dst.Type.AddRange(src.Type);
-			}
-
-			dst.Name = src.Name;
-
-			if (src.Description != null) {
-				dst.Description = new DTLocalizable { OutputString = true };
-				foreach (var kvp in src.Description)
-					dst.Description.Add(kvp.Key, kvp.Value);
-			}
-
-			if (src.DisplayName != null) {
-				dst.DisplayName = new DTLocalizable { OutputString = true };
-				foreach (var kvp in src.DisplayName)
-					dst.DisplayName.Add(kvp.Key, kvp.Value);
-			}
-
-			if (src.Schema != null) {
-				dst.Schema = ModifyForRestApi(src.Schema);
 			}
 
 			return dst;
@@ -600,6 +539,12 @@ namespace IoTHubReader.Client.Pages
 
 			dst.Name = src.Name;
 
+			if (src.Description != null) {
+				dst.Description = new DTLocalizable { OutputString = true };
+				foreach (var kvp in src.Description)
+					dst.Description.Add(kvp.Key, kvp.Value);
+			}
+
 			if (src.DisplayName != null) {
 				dst.DisplayName = new DTLocalizable { OutputString = true };
 				foreach (var kvp in src.DisplayName)
@@ -626,8 +571,6 @@ namespace IoTHubReader.Client.Pages
 
 			dst.Unit = src.Unit;
 
-			dst.DisplayUnit = src.DisplayUnit;
-
 			return dst;
 		}
 
@@ -652,8 +595,6 @@ namespace IoTHubReader.Client.Pages
 				foreach (var kvp in src.DisplayName)
 					dst.DisplayName.Add(kvp.Key, kvp.Value);
 			}
-
-			dst.DisplayUnit = src.DisplayUnit;
 
 			return dst;
 		}
